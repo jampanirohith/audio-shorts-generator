@@ -1,0 +1,11 @@
+yt-dlp>=2026.8.0
+spotdl==4.5.2
+spotipy>=2.25.1
+rapidfuzz>=3.13.0
+mutagen>=1.47.0
+numpy>=2.0.0
+scipy>=1.14.0
+librosa>=0.11.0
+soundfile>=0.13.0
+requests>=2.32.0
+python-dotenv>=1.1.0
