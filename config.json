@@ -15,7 +15,7 @@
   "foreground_width": 1080,
   "video_fps": 30,
   "video_crf": 18,
-  "cinematic_brightness": 0.025,
+  "cinematic_brightness": -0.025, 
   "cinematic_contrast": 1.08,
   "cinematic_saturation": 1.04,
   "subtitle_font_size": 62,
@@ -28,7 +28,7 @@
   "nvenc_cq": 20,
   "cpu_preset": "medium",
   "source_crop_width": 0.7,
-  "source_crop_height": 0.7,
+  "source_crop_height": 0.65,
   "automation": {
     "auto_youtube_selection": true,
     "auto_youtube_keywords": [

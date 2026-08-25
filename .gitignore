@@ -6,3 +6,7 @@ state/*.db
 state/*.db-*
 songs/final/*
 reels/finished/*
+
+.env
+
+.cache
