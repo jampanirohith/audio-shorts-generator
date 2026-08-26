@@ -6,10 +6,10 @@
   "top_youtube_results": 10,
   "hook_min_seconds": 35,
   "hook_preferred_min_seconds": 40,
-  "hook_preferred_max_seconds": 60,
-  "hook_max_seconds": 75,
-  "video_width": 1080,
-  "video_height": 1920,
+  "hook_preferred_max_seconds": 55,
+  "hook_max_seconds": 60,
+  "video_width": 1920,
+  "video_height": 1080,
   "video_fps": 30,
   "video_crf": 18,
   "cinematic_brightness": 0.025,
@@ -17,10 +17,6 @@
   "cinematic_saturation": 1.04,
   "source_crop_width": 0.7,
   "source_crop_height": 0.55,
-  "subtitle_font": "Noto Serif Telugu",
-  "subtitle_font_size": 62,
-  "subtitle_outline": 3,
-  "subtitle_margin_v": 170,
   "video_encoder": "auto",
   "nvenc_preset": "p5",
   "nvenc_cq": 20,
@@ -33,11 +29,5 @@
       "full video"
     ],
     "auto_continue": true
-  },
-  "subtitles": {
-    "enabled": true,
-    "creator_provided_only": true,
-    "auto_generated": false,
-    "auto_translate": false
   }
 }

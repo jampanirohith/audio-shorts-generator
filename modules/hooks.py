@@ -10,9 +10,9 @@ def _z(x):
     x=np.asarray(x,float); return (x-np.mean(x))/(np.std(x)+1e-9)
 
 def detect(video,temp,cfg):
-    """Advanced single-hook selection: evaluate many 35-75s beat-aligned candidates,
+    """Advanced single-hook selection: evaluate many 35-60s beat-aligned candidates,
     rank musical intensity, build-up, repetition, stability and clean endings, then
-    return only the best final timeline. Lyrics are deliberately not used."""
+    return only the best final timeline. Only the selected video audio is analyzed."""
     import librosa
     wav=Path(temp)/'hook_audio.wav'; _extract(video,wav)
     y,sr=librosa.load(wav,sr=22050,mono=True)
