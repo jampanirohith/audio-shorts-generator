@@ -1,8 +1,8 @@
 venv/
 __pycache__/
 *.pyc
-temp/
-state/*.db
-state/*.db-*
-songs/final/*
+temp/*
 reels/finished/*
+state/*
+cookies.txt
+.env

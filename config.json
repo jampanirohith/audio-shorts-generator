@@ -4,30 +4,35 @@
   "reels_finished_dir": "reels/finished",
   "db_path": "state/pipeline.db",
   "top_youtube_results": 10,
+
   "hook_min_seconds": 35,
   "hook_preferred_min_seconds": 40,
   "hook_preferred_max_seconds": 55,
   "hook_max_seconds": 60,
+
   "video_width": 1920,
   "video_height": 1080,
   "video_fps": 30,
+
   "video_crf": 18,
   "cinematic_brightness": 0.025,
   "cinematic_contrast": 1.08,
   "cinematic_saturation": 1.04,
+
   "source_crop_width": 0.7,
   "source_crop_height": 0.55,
+
   "video_encoder": "auto",
   "nvenc_preset": "p5",
   "nvenc_cq": 20,
   "cpu_preset": "medium",
+
   "automation": {
     "auto_youtube_selection": true,
     "auto_youtube_keywords": [
       "full video song",
       "video song",
       "full video"
-    ],
-    "auto_continue": true
+    ]
   }
 }

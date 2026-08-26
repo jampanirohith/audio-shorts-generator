@@ -1,209 +1,285 @@
-# Audio Shorts Generator — Final Pipeline
+# Audio Shorts Generator — Clean Final Pipeline
 
-This project takes a configured YouTube playlist, searches YouTube for the corresponding
-video song, chooses one result (automatically by default), detects one strong musical
-hook from that video's own audio, and renders exactly one 1080x1920 reel.
+A single-hook YouTube playlist-to-reel pipeline.
 
-## Important design rules
+The permanent identity of a processed item is the **chosen YouTube video**, not the
+playlist position. Every chosen YouTube video receives a stable serial number in SQLite.
+That serial is the handle used by the retry and manual reselection tools.
 
-- **No lyrics.**
-- **No subtitles.**
-- **No subtitle downloads.**
-- **No automatic YouTube translations.**
-- **No lyric analysis.**
-- **No Chrome/Edge/Firefox cookie extraction.**
-- If YouTube cookies are needed, only `cookies.txt` in the current user's home directory is used.
-- YouTube channel reputation is **never** used for automatic ranking.
-- YouTube view count **is** used as one ranking signal.
-- Only one final hook is rendered.
-- Working files are kept directly in `temp/`; there are no per-song temp subfolders.
-- yt-dlp download/progress output is intentionally hidden. The terminal shows the meaningful
-  pipeline stages, the current playlist entry, the YouTube search results, the selected result,
-  and the final success/error message.
-- If processing fails, `temp/` is deliberately left intact for debugging.
-- If processing succeeds, `temp/` is cleaned after the final reel and its JSON have been written.
+The project is deliberately quiet about low-level downloader output: the terminal shows
+the current playlist item, search results, the selected result, meaningful processing
+stages, and the final success/error state.
 
 ---
 
-# Complete pipeline
+## 1. Final pipeline
 
-## 1. Read the playlist
+1. Read the configured YouTube playlist with `yt-dlp`.
+2. Do not assign permanent serials from playlist order.
+3. Display the current playlist entry.
+4. Search YouTube using the original playlist **video title**.
+5. Display the returned search results.
+6. In automatic mode, rank results using:
+   - title similarity,
+   - video-song wording,
+   - logarithmically normalized view count.
+7. Never use channel reputation as an automatic ranking signal.
+8. Display the automatically chosen result.
+9. After a result is chosen:
+   - assign/reuse its stable serial,
+   - store the original playlist details under that chosen-video record,
+   - store the chosen search-result details,
+   - mark the record `PROCESSING`.
+10. Skip a chosen video already marked `FINISHED`.
+11. Download the selected YouTube video into `temp/` with `yt-dlp`.
+12. Read the complete selected-video metadata returned by `yt-dlp`.
+13. Probe the actual downloaded source with `ffprobe`.
+14. Extract the selected video's own audio for hook analysis.
+15. Evaluate overlapping, variable-length candidates from 35–60 seconds.
+16. Score energy, peaks, onset activity, build-up, dynamics, beat density,
+    repeated/coherent musical material, ending quality, and preferred duration.
+17. Snap the winning boundaries to nearby beats when possible.
+18. Render exactly one final hook.
+19. Create the configured output canvas (the supplied final configuration is 1920×1080).
+20. Center-crop the source using the configured crop fractions.
+21. Scale the cropped source to the complete output width.
+22. Center the scaled cropped video on a pure-black canvas.
+23. Use NVIDIA NVENC automatically when available; otherwise use CPU x264.
+24. Probe the final reel with `ffprobe`.
+25. Write an ultra-detailed JSON beside the final reel.
+26. Store the completed metadata and final paths in SQLite.
+27. Remove the old reel pair only after a successful replacement.
+28. Clean `temp/` only after the reel, JSON, and database completion succeed.
+29. If processing fails, leave `temp/` intact for debugging.
 
-`yt-dlp` reads the configured playlist directly.
+---
 
-The playlist position is **not** the permanent reel serial.
+## 2. Terminal behavior
 
-The playlist is used only to provide the original song/video title that becomes the YouTube
-search query.
+The normal terminal output is intentionally human-readable rather than a raw downloader log.
 
-## 2. Show the current playlist entry
-
-The terminal prints the current playlist title and URL.
-
-It does not print the complete yt-dlp download stream.
-
-## 3. Search YouTube
-
-The original playlist **video title** is used as the search query.
-
-The search returns the configured number of candidates.
-
-For each candidate the program records:
-
-- YouTube video ID
-- title
-- URL
-- channel/uploader text for display/reference only
-- duration when available
-- view count when available
-- upload date when available
-
-## 4. Automatic YouTube ranking
-
-Automatic ranking deliberately does **not** consider channel reputation.
-
-Ranking uses:
-
-1. title similarity — strongest factor
-2. `Full Video Song` / `Video Song` / related video wording
-3. view count using a logarithmic normalization
-
-The view-count signal cannot overwhelm title similarity simply because a video is viral.
-
-The terminal prints all ranked candidates and then the automatically selected result.
-
-Manual mode is also available through `config.json`.
-
-## 5. Permanent serial assignment
-
-A serial is assigned **after a YouTube result has been chosen**.
-
-The serial belongs to the chosen-video/reel record.
-
-The same chosen YouTube video gets the same serial if it is encountered again.
-
-This is why a final file looks like:
+You will see:
 
 ```text
-0007_VIDEOID_reel.mp4
-0007_VIDEOID_reel.json
+==============================================================================
+CURRENT PLAYLIST ENTRY: Example Song
+==============================================================================
+Original playlist URL: ...
+
+Searching YouTube ...
+
+YouTube search results (channel reputation is not considered):
+[1] score=... | title_match=... | video_wording=... | views=... | ...
+[2] score=... | title_match=... | video_wording=... | views=... | ...
+
+AUTO CHOSEN:
+[VIDEO_ID] Example Song - Video Song
+URL: https://www.youtube.com/watch?v=...
+
+CHOSEN YOUTUBE VIDEO [0007]
+Title: Example Song - Video Song
+URL: ...
+
+Downloading selected YouTube video to temp/ ...
+Reading complete YouTube metadata ...
+Analysing audio and selecting the single final hook ...
+Rendering final 1920x1080 reel ...
+
+PROCESSED WITHOUT ERRORS.
+Final reel: reels/finished/0007_VIDEO_ID_reel.mp4
+Final reel JSON: reels/finished/0007_VIDEO_ID_reel.json
 ```
 
-The serial is therefore useful as the permanent handle for later operations.
+The detailed `yt-dlp` download/progress stream is suppressed.
 
-## 6. Database record
+---
 
-SQLite stores the chosen video as the main reference.
+## 3. YouTube automatic selection
 
-The record contains:
+The search query is the original playlist video title.
 
-- permanent serial
-- chosen YouTube video ID/title/URL
-- complete original playlist-song JSON
-- chosen search-result JSON
-- status
-- error text when applicable
-- final reel path
-- complete metadata JSON
+Automatic ranking deliberately ignores channel identity/reputation.
 
-The original playlist song is stored **under the chosen-video record** rather than being
-treated as the permanent identity.
+Current ranking:
 
-### Statuses
+```text
+58% title similarity
+22% video wording
+10% view count
+10% source-duration similarity
+```
 
-The database records:
+The title matcher first extracts the core song name from wrappers such as
+`(From "Movie")`. Exact core-song matches are strongest, while compact matching tolerates
+common spacing/repeated-letter differences such as `Koppamga` vs `Kopam Ga`.
+
+Results containing real `Video Song` / `Full Video Song` wording receive a strong bonus.
+`Video with Lyrics`, lyric/lyrical, audio, slowed/reverb, remix, cover, BTS, promo and
+collection results receive quality penalties so a large view count cannot push an inferior
+variant above the actual music video.
+
+The original playlist video's metadata is read silently as a reference. Its duration is used
+as a supporting signal when several search results have similar titles. The original video
+is never downloaded, never assigned a serial, and is not used as a channel-reputation signal.
+
+View count is normalized logarithmically relative to the largest returned result, so a viral
+result cannot overwhelm a substantially better title match simply because it has more views.
+
+The complete ranking calculation is saved in the final JSON.
+
+Set:
+
+```json
+"auto_youtube_selection": false
+```
+
+to use manual selection during normal playlist processing.
+
+---
+
+## 4. Stable serial design
+
+A playlist position is not the permanent identity.
+
+When a YouTube result is chosen, the database looks up its YouTube video ID:
+
+- if that video ID already has a serial, the same serial is reused;
+- otherwise the next serial is assigned.
+
+Example:
+
+```text
+0007_A3Im3P0--aE_reel.mp4
+0007_A3Im3P0--aE_reel.json
+```
+
+Serial `0007` therefore identifies the chosen-video record.
+
+The database keeps the original playlist details inside that chosen-video record:
+
+```text
+queue
+ └── serial 0007
+      ├── selected YouTube video
+      ├── original playlist song
+      ├── search information
+      ├── processing status
+      ├── hook information
+      ├── render information
+      └── final paths
+```
+
+---
+
+## 5. Database statuses
+
+`state/pipeline.db` contains:
+
+### `queue`
+
+Permanent chosen-video records.
+
+Important fields:
+
+- `serial`
+- `selected_video_id`
+- `selected_video_title`
+- `selected_video_url`
+- `original_json`
+- `selected_json`
+- `status`
+- `error`
+- `metadata_json`
+- `final_path`
+- `final_json_path`
+- timestamps
+
+Statuses are:
 
 - `PENDING`
 - `PROCESSING`
 - `FINISHED`
+- `SKIPPED`
 - `ERROR`
 
-Manual skips are recorded in the separate `skipped` table with their original playlist details
-and skip reason.
+### `skipped`
 
-The `events` table records processing milestones and errors.
+Stores explicit skips and duplicate-prevention skips together with the original
+playlist information and reason.
 
-## 7. Download
+### `events`
 
-The selected YouTube video is downloaded by yt-dlp into:
+Stores processing milestones and error messages for auditing/debugging.
+
+The database initialization is migration-safe for the fields used by earlier versions:
+existing compatible queue data is not renamed away simply because a newer field is needed.
+
+---
+
+## 6. Cookie behavior
+
+If YouTube requires a cookie file, the only supported location is:
+
+```text
+Windows:
+C:\Users\<your-user>\cookies.txt
+
+Other systems:
+~/cookies.txt
+```
+
+The program passes that explicit file to `yt-dlp` when it exists.
+
+No browser profile extraction is performed.
+
+No Chrome, Edge, Firefox, or other browser cookie integration is used.
+
+---
+
+## 7. Working files
+
+All working files are placed directly inside:
 
 ```text
 temp/
 ```
 
-There are no per-song temp directories.
+There are no per-song temporary subdirectories.
 
-Only an explicit home-directory cookie file is considered:
-
-```text
-%USERPROFILE%\cookies.txt
-```
-
-on Windows, or:
+Typical temporary files include:
 
 ```text
-~/cookies.txt
+temp/
+    source_VIDEO_ID.mp4
+    hook_analysis.wav
 ```
 
-on other systems.
+A failed processing attempt intentionally leaves these files in place.
 
-No browser-cookie extraction is performed.
+A successful attempt removes the contents of `temp/` only after the permanent reel,
+permanent JSON, and database update are complete.
 
-The download command uses quiet/no-warning operation so the terminal does not become a wall of
-yt-dlp progress output.
+The next attempt uses deterministic source filenames so an old failed download is not
+mistaken for a different YouTube result.
 
-## 8. Complete YouTube metadata
+---
 
-After selecting the video, the project requests the full yt-dlp metadata JSON.
+## 8. Hook detection
 
-That complete metadata is retained for the final JSON handoff.
+Only one final hook is produced.
 
-This includes whatever yt-dlp exposes for the selected video, such as:
+Default candidate range:
 
-- title
-- uploader/channel
-- IDs
-- URL
-- duration
-- upload date
-- description
-- thumbnails
-- formats
-- codecs
-- resolution information
-- view/like/comment information when exposed
-- webpage/player metadata
-- other extractor fields returned by yt-dlp
+```text
+minimum: 35 seconds
+maximum: 60 seconds
+preferred region: 40–55 seconds
+```
 
-No attempt is made to reduce the selected video's metadata to a tiny summary.
+The detector evaluates many overlapping candidates at one-second start spacing and
+five-second duration increments.
 
-## 9. No lyrics/subtitles stage
-
-There is intentionally no lyrics stage.
-
-There is intentionally no subtitle stage.
-
-There is intentionally no caption download.
-
-There is intentionally no automatic-translation request.
-
-The project does not inspect lyrics to choose a hook.
-
-## 10. Advanced single-hook detection
-
-The selected video's own audio is extracted temporarily.
-
-The detector evaluates many overlapping candidates.
-
-Candidate duration:
-
-- minimum: 35 seconds
-- maximum: 60 seconds
-- preferred region: approximately 40–55 seconds
-
-The exact configuration is in `config.json`.
-
-The detector considers musical/audio characteristics including:
+Features include:
 
 - RMS energy
 - peak level
@@ -215,42 +291,57 @@ The detector considers musical/audio characteristics including:
 - ending quality
 - preferred duration
 
-Beat tracking is used to snap the winning boundaries to nearby musical beats where possible.
+The winning interval is optionally snapped to nearby beat boundaries when the resulting
+duration remains inside the configured limits.
 
-Exactly **one** hook wins.
+The complete detector result is saved in the final JSON.
 
-There is no hook-choice menu.
+---
 
-## 11. Final reel rendering
+## 9. Video rendering
 
-Output dimensions are:
+The supplied final configuration uses:
 
-```text
-1080 x 1920
+```json
+"video_width": 1920,
+"video_height": 1080
 ```
 
-The background is pure black.
+That produces a **16:9 1920×1080 final reel**.
 
-The configured source crop is applied first:
+Crop defaults:
 
 ```json
 "source_crop_width": 0.7,
 "source_crop_height": 0.55
 ```
 
-The crop is centered.
+The rendering order is:
 
-After cropping, the cropped video is **scaled to the full 1080-pixel reel width**.
-This is deliberate.
+```text
+selected source
+    ↓
+center crop
+    ↓
+scale cropped image to full output width
+    ↓
+apply cinematic adjustment
+    ↓
+place in vertical center of black canvas
+    ↓
+encode final MP4
+```
 
-That means small source videos are upscaled instead of becoming a tiny landscape rectangle.
+This means a small source is intentionally upscaled to the complete 1920-pixel output width
+instead of remaining as a small landscape rectangle.
 
-The cropped result's aspect ratio is preserved while scaling to 1080px wide, and the resulting
-video is vertically centered on the 1080x1920 black canvas.
+The crop remains centered.
 
-The current cinematic adjustment is applied after cropping/scaling.
+The output canvas remains pure black around the scaled cropped video.
 
-## 12. GPU acceleration
+---
+
+## 10. GPU acceleration
 
 With:
 
@@ -258,80 +349,73 @@ With:
 "video_encoder": "auto"
 ```
 
-the renderer checks whether FFmpeg exposes:
+the renderer checks FFmpeg for `h264_nvenc`.
+
+If available:
 
 ```text
 h264_nvenc
 ```
 
-If available, NVIDIA NVENC is used.
+is used.
 
-Otherwise the renderer falls back to CPU `libx264`.
-
-The selected encoder is recorded in the final JSON.
-
-## 13. Permanent final JSON
-
-Every successful reel gets a JSON file beside it:
+Otherwise:
 
 ```text
-reels/finished/0007_VIDEOID_reel.mp4
-reels/finished/0007_VIDEOID_reel.json
+libx264
 ```
 
-The JSON is intentionally detailed so the reel can be processed later for workflows such as:
+is used.
 
-- audio mastering
-- 8D processing
-- re-encoding
-- alternate rendering
-- Instagram upload preparation
-- audit/debugging
-- re-running a chosen source
+The actual encoder and complete FFmpeg output probe are stored in the final JSON.
+
+---
+
+## 11. Final reel JSON
+
+Every successful reel has a JSON file beside it:
+
+```text
+reels/finished/
+    0007_VIDEO_ID_reel.mp4
+    0007_VIDEO_ID_reel.json
+```
+
+The JSON is intended to be a permanent handoff/audit document.
 
 It contains:
 
 - schema version
 - generation timestamp
-- permanent serial
+- stable serial
+- chosen-video identity
 - original playlist details
-- chosen video/search details
-- complete yt-dlp metadata
-- complete YouTube search candidates
-- ranking information
-- hook start/end/duration
-- hook detector statistics
-- render dimensions
-- crop values
+- selected search result
+- complete `yt-dlp` metadata
+- all search results
+- ranking calculations
+- ranking policy
+- source download filename and size
+- source `ffprobe` data
+- hook detector result
+- crop settings
 - scaling behavior
+- canvas dimensions
 - cinematic settings
 - encoder
 - audio settings
-- final file path
-- final file size
-- pipeline flags
+- final `ffprobe` data
+- final file size/path
 - configuration snapshot
+- pipeline behavior flags
+- cookie-file presence/path information
 
-The JSON is written before `temp/` is cleaned.
-
-## 14. Successful cleanup
-
-Only after:
-
-1. download succeeds
-2. metadata succeeds
-3. hook analysis succeeds
-4. final reel succeeds
-5. final JSON succeeds
-6. database is marked finished
-
-does the program delete the contents of `temp/`.
-
-If any processing stage fails, temporary files remain.
+This provides enough persistent information for later processing such as re-encoding,
+audio mastering, 8D work, alternate exports, audit/debugging, and upload preparation.
 
 ---
 
-# Reselecting a finished reel
+## 12. Manual reselection
 
 Use:
 
@@ -339,59 +423,58 @@ Use:
 python reselect.py
 ```
 
-Then enter the serial from the final reel filename.
-
-Example:
+Then enter the serial:
 
 ```text
-Enter final reel serial number: 0007
+Enter final reel serial number: 7
 ```
 
-The program:
+The tool:
 
-1. opens serial 0007
-2. reads its original playlist title
-3. searches YouTube again using that original title
-4. shows the YouTube results
-5. forces a **manual** choice
-6. keeps serial `0007`
-7. replaces the chosen-video reference
-8. downloads the newly chosen video
-9. reads complete metadata
-10. runs the same single-hook detector
-11. renders one new final reel
-12. writes a new detailed JSON
-13. updates SQLite
-14. cleans `temp/` only after success
+1. opens the existing serial;
+2. reads its stored original playlist title;
+3. searches YouTube again;
+4. shows the search results;
+5. forces manual selection;
+6. keeps the same serial;
+7. changes the chosen YouTube video reference;
+8. downloads the newly chosen video;
+9. reads its complete metadata;
+10. runs the same hook detector;
+11. renders one new reel;
+12. writes the new detailed JSON;
+13. updates SQLite;
+14. removes the previous reel/JSON pair only after the replacement succeeds;
+15. cleans `temp/` only after successful completion.
 
-This is intentionally separate from normal automatic selection.
+This avoids creating a new serial simply because the selected YouTube video was corrected.
 
-You do not need to manually delete the old database row.
-
-The serial remains the same because it is the permanent reel/task handle.
-
-The old final MP4 is overwritten by the newly rendered reel with the same serial and the new
-YouTube video ID in the filename.
+If the newly selected video is already `FINISHED` under another serial, reselection is rejected
+to prevent duplicate final references.
 
 ---
 
-# Retry by serial
+## 13. Retry
 
-You can also retry a record directly:
+To process the stored chosen video again:
 
 ```powershell
 python main.py --retry 7
 ```
 
-This does **not** perform a new YouTube selection. It retries the stored chosen video.
+Retry does not perform a new YouTube search.
 
-To reset its status:
+It uses the chosen YouTube video currently stored for serial 7.
+
+`--retry` is allowed for both completed and failed records.
+
+Optional reset:
 
 ```powershell
 python main.py --reset 7
 ```
 
-Then run:
+Then:
 
 ```powershell
 python main.py --retry 7
@@ -399,7 +482,7 @@ python main.py --retry 7
 
 ---
 
-# Project layout
+## 14. Project structure
 
 ```text
 audio-shorts-generator-final/
@@ -410,36 +493,32 @@ audio-shorts-generator-final/
 ├── requirements.txt
 ├── README.md
 ├── run.ps1
-├── .gitignore
 ├── .env.example
+├── .gitignore
 │
-├── modules/
-│   ├── __init__.py
-│   ├── youtube.py
-│   ├── hooks.py
-│   ├── db.py
-│   └── video.py
-│
-├── temp/
-│   └── (working files only; normally empty after success)
-│
-├── reels/
-│   └── finished/
-│       ├── 0001_VIDEOID_reel.mp4
-│       └── 0001_VIDEOID_reel.json
-│
-└── state/
-    └── pipeline.db
+└── modules/
+    ├── __init__.py
+    ├── youtube.py
+    ├── hooks.py
+    ├── video.py
+    └── db.py
 ```
 
-No lyrics files, subtitle files, subtitle fonts, browser-cookie integrations, or per-song temp
-folders are part of the final pipeline.
+Runtime directories are created automatically:
+
+```text
+temp/
+reels/finished/
+state/
+```
+
+They are intentionally not required to be present in the source ZIP.
 
 ---
 
-# Installation on Windows
+## 15. Installation on Windows
 
-Install FFmpeg and make sure these work:
+Verify:
 
 ```powershell
 ffmpeg -version
@@ -447,7 +526,7 @@ ffprobe -version
 yt-dlp --version
 ```
 
-Create the virtual environment:
+Create a virtual environment:
 
 ```powershell
 py -3 -m venv venv
@@ -462,130 +541,90 @@ Run:
 python main.py
 ```
 
-## Cookies
-
-If YouTube requires authentication, place the Netscape-format exported cookie file here:
-
-```text
-C:\Users\<your-user>\cookies.txt
-```
-
-The program reads only that file.
-
-It does not inspect Chrome, Edge, Firefox, or any other browser profile.
-
-If the file does not exist, yt-dlp simply runs without cookies.
-
 ---
 
-# Configuration
+## 16. Configuration
 
 The most important settings are:
 
 ```json
 {
+  "video_width": 1920,
+  "video_height": 1080,
+
+  "source_crop_width": 0.7,
+  "source_crop_height": 0.55,
+
   "hook_min_seconds": 35,
   "hook_preferred_min_seconds": 40,
   "hook_preferred_max_seconds": 55,
   "hook_max_seconds": 60,
 
-  "source_crop_width": 0.7,
-  "source_crop_height": 0.55,
-
-  "video_width": 1080,
-  "video_height": 1920,
-
   "video_encoder": "auto"
 }
 ```
 
-YouTube automatic selection:
+For automatic YouTube selection:
 
 ```json
 "auto_youtube_selection": true
 ```
 
-Set it to `false` if you want the normal manual result selector.
-
----
-
-# Troubleshooting
-
-### YouTube says "Sign in to confirm you're not a bot"
-
-Put a valid Netscape-format `cookies.txt` in your home directory.
-
-No browser integration is used.
-
-### Final reel looks too small
-
-The final pipeline explicitly scales the cropped source to 1080px width.
-This behavior is recorded in the JSON as:
+For manual selection during normal processing:
 
 ```json
-"small_sources_upscaled": true
-```
-
-### Processing fails
-
-Do not delete `temp/`.
-
-The project intentionally keeps its temporary working files after a failure so the failure
-can be inspected.
-
-### A finished reel uses the wrong YouTube video
-
-Run:
-
-```powershell
-python reselect.py
-```
-
-Enter the reel serial and manually choose the correct YouTube result.
-
-### You want to process the same chosen video again
-
-Run:
-
-```powershell
-python main.py --retry SERIAL
+"auto_youtube_selection": false
 ```
 
 ---
 
-# Final terminal behavior
+## 17. Expected failure behavior
 
-During normal automation you should see approximately:
+### YouTube anti-bot/authentication error
 
-```text
-==============================================================================
-CURRENT PLAYLIST ENTRY: Example Song
-==============================================================================
-Original playlist URL: ...
+If `yt-dlp` reports that authentication is required, provide a valid Netscape-format
+`cookies.txt` at the supported home-directory location.
 
-YouTube search results (channel reputation is NOT considered):
-[1] score=... | title_match=... video_wording=... views=... | ...
-[2] score=... | title_match=... video_wording=... views=... | ...
+The application does not attempt browser extraction.
 
-AUTO CHOSEN:
-[VIDEOID] Example Song - Video Song
-URL: https://www.youtube.com/watch?v=...
+### FFmpeg/FFprobe not found
 
-CHOSEN YOUTUBE VIDEO [0007]
-Title: Example Song - Video Song
-URL: ...
+Install FFmpeg and make sure both commands are available on `PATH`.
 
-Downloading selected YouTube video to temp/ ...
-Reading complete YouTube metadata ...
-Analysing audio and selecting the single final hook ...
-Rendering final 9:16 reel ...
-Crop: 0.70 x 0.55 of source
-Final canvas: 1080x1920 | cropped video stretched to 1080px width and vertically centered
-Encoder: NVIDIA NVENC/GPU
+### Hook analysis failure
 
-PROCESSED WITHOUT ERRORS.
-Final reel: reels/finished/0007_VIDEOID_reel.mp4
-Final reel JSON: reels/finished/0007_VIDEOID_reel.json
-```
+The record is marked `ERROR`, the exception is written to the database event log, and
+`temp/` is retained.
 
-It intentionally does **not** print yt-dlp's full download progress stream.
+### Render failure
+
+The permanent output is not replaced by a partial `.rendering.mp4` file. The temporary
+render file is removed and the database record becomes `ERROR`.
+
+### Final JSON failure
+
+The reel is not considered a completed pipeline result until its JSON has been written and
+the database has been updated.
+
+---
+
+## 18. Professional invariants
+
+The final implementation maintains these invariants:
+
+- Playlist order never becomes the permanent reel serial.
+- The selected YouTube video is the primary database identity.
+- One serial maps to one current chosen YouTube video.
+- A finished YouTube video is not silently duplicated under another serial.
+- Manual reselection keeps the same serial.
+- Retry does not perform a new search.
+- Exactly one hook is rendered.
+- The output dimensions always come from `config.json`.
+- The cropped source always targets the complete output width.
+- Low-level downloader progress is hidden.
+- Meaningful processing stages remain visible in the terminal.
+- Temporary files remain after failures.
+- Temporary files are cleaned only after successful completion.
+- A replacement reel is not allowed to destroy the previous finished reel until the
+  replacement has succeeded.
+- The final JSON and database record describe the actual generated output.
