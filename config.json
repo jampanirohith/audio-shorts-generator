@@ -2,37 +2,39 @@
   "playlist_url": "https://youtube.com/playlist?list=PL2Yb7zI9VB0q_bzQKCYv81A6v-qKEP7Uz",
   "temp_dir": "temp",
   "reels_finished_dir": "reels/finished",
-  "db_path": "state/pipeline.db",
+  "playlist_db_path": "state/playlist.db",
+  "reels_db_path": "state/reels.db",
   "top_youtube_results": 10,
-
+  "retry_error_entries_by_default": false,
   "hook_min_seconds": 35,
   "hook_preferred_min_seconds": 40,
   "hook_preferred_max_seconds": 55,
   "hook_max_seconds": 60,
-
   "video_width": 1920,
   "video_height": 1080,
   "video_fps": 30,
-
   "video_crf": 18,
-  "cinematic_brightness": 0.025,
-  "cinematic_contrast": 1.08,
-  "cinematic_saturation": 1.04,
-
+  "audio_bitrate": "192k",
+  "cinematic_enabled": true,
+  "cinematic_brightness": 0.0,
+  "cinematic_contrast": 1.1,
+  "cinematic_saturation": 1.03,
+  "cinematic_gamma": 1.02,
+  "cinematic_sharpen": 0.3,
+  "cinematic_vignette_divisor": 7,
   "source_crop_width": 0.7,
   "source_crop_height": 0.55,
-
   "video_encoder": "auto",
   "nvenc_preset": "p5",
   "nvenc_cq": 20,
   "cpu_preset": "medium",
-
   "automation": {
     "auto_youtube_selection": true,
     "auto_youtube_keywords": [
       "full video song",
       "video song",
-      "full video"
+      "full video",
+      "music video"
     ]
   }
 }

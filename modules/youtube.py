@@ -65,6 +65,8 @@ def playlist(url):
     except json.JSONDecodeError as exc:
         raise RuntimeError("yt-dlp returned invalid playlist JSON.") from exc
 
+    playlist_id = data.get("id") or ""
+    playlist_title = data.get("title") or ""
     rows = []
     for index, entry in enumerate(data.get("entries") or [], 1):
         if not entry:
@@ -74,6 +76,8 @@ def playlist(url):
             continue
         rows.append({
             "playlist_index": index,
+            "playlist_id": playlist_id,
+            "playlist_title": playlist_title,
             "title": entry.get("title") or "",
             "id": video_id,
             "url": clean_url(
@@ -198,21 +202,13 @@ def _title_score(query, title):
 def _video_wording_score(title, keywords):
     normalized = _norm(title)
 
-    # Lyrics/audio/alternate versions must not outrank a real video merely
-    # because they have more views.
-    if re.search(r"\bvideo\s+with\s+lyrics?\b", normalized):
-        score = 0.45
-    elif re.search(r"\b(?:lyric|lyrics|lyrical)\s+video\b", normalized):
-        score = 0.25
-    elif re.search(r"\b(?:lyric|lyrics|lyrical)\b", normalized):
-        score = 0.20
-    elif re.search(r"\bfull\s+video\s+song\b", normalized):
+    if re.search(r"\\bfull\\s+video\\s+song\\b", normalized):
         score = 1.00
-    elif re.search(r"\bvideo\s+song\b", normalized):
+    elif re.search(r"\\bvideo\\s+song\\b", normalized):
         score = 0.95
-    elif re.search(r"\bfull\s+video\b", normalized):
+    elif re.search(r"\\bfull\\s+video\\b", normalized):
         score = 0.90
-    elif re.search(r"\b(?:official\s+)?(?:music\s+)?video\b", normalized):
+    elif re.search(r"\\b(?:official\\s+)?(?:music\\s+)?video\\b", normalized):
         score = 0.85
     else:
         score = 0.0
@@ -221,11 +217,10 @@ def _video_wording_score(title, keywords):
         key = _norm(keyword)
         if not key:
             continue
-        if key in normalized:
-            if "video song" in key:
-                score = max(score, 0.95)
-            elif "full video" in key:
-                score = max(score, 0.90)
+        if "video song" in key:
+            score = max(score, 0.95)
+        elif "full video" in key:
+            score = max(score, 0.90)
 
     return score
 
@@ -238,8 +233,6 @@ _QUALITY_PENALTIES = (
     (r"\b(?:teaser|trailer|promo|shorts?)\b", 0.24, "promo_or_short"),
     (r"\b(?:audio|audio\s+song)\b", 0.16, "audio_only"),
     (r"\b(?:jukebox|playlist|mix)\b", 0.22, "collection"),
-    (r"\b(?:lyric|lyrics|lyrical)\b", 0.12, "lyrics"),
-    (r"\b(?:with\s+lyrics?)\b", 0.10, "lyrics"),
 )
 
 
@@ -252,7 +245,6 @@ def _quality_penalty(title):
             penalty += amount
             reasons.append(reason)
     return min(0.45, penalty), reasons
-
 
 def _duration_score(reference_duration, candidate_duration):
     try:
@@ -275,60 +267,40 @@ def rank_results(results, source_title, cfg, reference_info=None):
         "auto_youtube_keywords",
         ["full video song", "video song", "full video"],
     )
-
-    max_views = max(
-        (int(item.get("view_count") or 0) for item in results),
-        default=0,
-    )
-    reference_duration = (
-        reference_info.get("duration")
-        if isinstance(reference_info, dict)
-        else None
-    )
+    max_views = max((int(item.get("view_count") or 0) for item in results), default=0)
+    reference_duration = reference_info.get("duration") if isinstance(reference_info, dict) else None
+    reference_title = reference_info.get("title") if isinstance(reference_info, dict) else None
 
     ranked = []
     for result in results:
-        title_match = _title_score(source_title, result["title"])
+        playlist_title_match = _title_score(source_title, result["title"])
+        metadata_title_match = _title_score(reference_title or source_title, result["title"])
+        title_match = max(playlist_title_match, metadata_title_match)
         wording = _video_wording_score(result["title"], keywords)
         views = int(result.get("view_count") or 0)
-
-        if max_views:
-            view_score = min(
-                1.0,
-                math.log10(views + 1) / math.log10(max_views + 1),
-            )
-        else:
-            view_score = 0.0
-
-        duration_score = _duration_score(
-            reference_duration,
-            result.get("duration"),
+        view_score = (
+            min(1.0, math.log10(views + 1) / math.log10(max_views + 1))
+            if max_views else 0.0
         )
+        duration_score = _duration_score(reference_duration, result.get("duration"))
         quality_penalty, penalty_reasons = _quality_penalty(result["title"])
 
-        # Keep title matching dominant, keep real video wording strong, and
-        # use views/duration as supporting evidence rather than letting views
-        # select a different song.
         score = (
-            0.58 * title_match
+            0.54 * title_match
             + 0.22 * wording
-            + 0.10 * view_score
-            + 0.10 * duration_score
+            + 0.08 * view_score
+            + 0.16 * duration_score
             - quality_penalty
         )
-
-        # Strong bonus only for an actual full/video-song wording. "Video with
-        # Lyrics" does not receive this bonus.
-        if re.search(
-            r"\b(?:full\s+video\s+song|video\s+song)\b",
-            _norm(result["title"]),
-        ) and "with lyrics" not in _norm(result["title"]):
+        if re.search(r"\b(?:full\s+video\s+song|video\s+song)\b", _norm(result["title"])):
             score += 0.06
 
         ranked.append({
             "rank": 0,
             "score": round(score, 6),
             "title_match": round(title_match, 6),
+            "playlist_title_match": round(playlist_title_match, 6),
+            "metadata_title_match": round(metadata_title_match, 6),
             "video_wording": round(wording, 6),
             "view_score": round(view_score, 6),
             "view_count": views,
@@ -340,18 +312,14 @@ def rank_results(results, source_title, cfg, reference_info=None):
 
     ranked.sort(
         key=lambda item: (
-            item["score"],
-            item["title_match"],
-            item["video_wording"],
-            item["duration_score"],
-            item["view_count"],
+            item["score"], item["title_match"], item["video_wording"],
+            item["duration_score"], item["view_count"],
         ),
         reverse=True,
     )
     for index, item in enumerate(ranked, 1):
         item["rank"] = index
     return ranked
-
 
 def choose(
     results,

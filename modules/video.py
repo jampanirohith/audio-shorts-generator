@@ -32,6 +32,18 @@ def probe(path):
         raise RuntimeError("ffprobe returned invalid JSON.") from exc
 
 
+def _ffmpeg_version():
+    try:
+        proc = subprocess.run(
+            ["ffmpeg", "-version"],
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            text=True, encoding="utf-8", errors="replace",
+        )
+        return (proc.stdout or "").splitlines()[0] if proc.stdout else None
+    except Exception:
+        return None
+
+
 def _nvenc_available():
     if shutil.which("ffmpeg") is None:
         return False
@@ -68,20 +80,33 @@ def render(video, start, end, output, cfg):
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary_output = output.with_name(output.stem + ".rendering.mp4")
 
-    # Crop first, then scale the cropped image to the complete output width.
-    # Height is derived from the crop aspect ratio and the result is centered
-    # on the configured canvas.
+    # The crop is applied first. The resulting crop is scaled to the COMPLETE
+    # output width. Its height is preserved from the crop aspect ratio and it
+    # is centered on the black output canvas. This deliberately upscales small
+    # sources so they never become a tiny centered landscape box.
+    cinematic = bool(cfg.get("cinematic_enabled", True))
+    cinematic_filters = ""
+    if cinematic:
+        cinematic_filters = (
+            f"eq="
+            f"brightness={cfg.get('cinematic_brightness', 0.0)}:"
+            f"contrast={cfg.get('cinematic_contrast', 1.10)}:"
+            f"saturation={cfg.get('cinematic_saturation', 1.03)}:"
+            f"gamma={cfg.get('cinematic_gamma', 1.02)},"
+            f"unsharp=5:5:{cfg.get('cinematic_sharpen', 0.30)}:5:5:0,"
+            f"vignette=PI/{cfg.get('cinematic_vignette_divisor', 7)}:eval=frame,"
+        )
+
     filters = (
         f"[0:v]"
         f"crop=iw*{crop_width}:ih*{crop_height}:(iw-ow)/2:(ih-oh)/2,"
         f"scale={width}:-1:flags=lanczos,"
         f"setsar=1,"
-        f"eq="
-        f"brightness={cfg.get('cinematic_brightness', 0.025)}:"
-        f"contrast={cfg.get('cinematic_contrast', 1.08)}:"
-        f"saturation={cfg.get('cinematic_saturation', 1.04)}"
+        f"{cinematic_filters}"
+        f"format=yuv420p"
         f"[foreground];"
-        f"color=c=black:s={width}x{height}:r={cfg.get('video_fps', 30)}[background];"
+        f"color=c=black:s={width}x{height}:r={cfg.get('video_fps', 30)}"
+        f"[background];"
         f"[background][foreground]"
         f"overlay=(W-w)/2:(H-h)/2:shortest=1"
         f"[video]"
@@ -102,6 +127,9 @@ def render(video, start, end, output, cfg):
         ]
 
     encoder_mode = str(cfg.get("video_encoder", "auto")).lower()
+    if encoder_mode not in {"auto", "gpu", "nvenc", "cpu", "x264"}:
+        raise ValueError("video_encoder must be auto, gpu/nvenc, or cpu/x264.")
+
     wants_gpu = encoder_mode in {"auto", "gpu", "nvenc"}
     gpu_available = wants_gpu and _nvenc_available()
 
@@ -111,7 +139,7 @@ def render(video, start, end, output, cfg):
         flush=True,
     )
     print(
-        f"Cropped source is scaled to {width}px width and centered vertically",
+        f"Cropped source is scaled to {width}px width and centered on the canvas",
         flush=True,
     )
 
@@ -128,11 +156,11 @@ def render(video, start, end, output, cfg):
             *encoder_args(use_gpu),
             "-pix_fmt", "yuv420p",
             "-c:a", "aac",
-            "-b:a", "192k",
+            "-b:a", str(cfg.get("audio_bitrate", "192k")),
             "-movflags", "+faststart",
             str(temporary_output),
         ]
-        return subprocess.run(
+        return command, subprocess.run(
             command,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -142,10 +170,11 @@ def render(video, start, end, output, cfg):
         )
 
     used_gpu = False
+    command_used = None
     try:
         if gpu_available:
             print("Encoder: NVIDIA NVENC/GPU (auto-detected)", flush=True)
-            proc = run_render(True)
+            command_used, proc = run_render(True)
             if proc.returncode == 0:
                 used_gpu = True
             else:
@@ -156,20 +185,16 @@ def render(video, start, end, output, cfg):
                 )
                 if temporary_output.exists():
                     temporary_output.unlink()
-                proc = run_render(False)
+                command_used, proc = run_render(False)
         else:
             print("Encoder: CPU x264", flush=True)
-            proc = run_render(False)
+            command_used, proc = run_render(False)
 
         if proc.returncode:
-            raise RuntimeError(
-                proc.stdout[-8000:] or "FFmpeg rendering failed."
-            )
+            raise RuntimeError(proc.stdout[-8000:] or "FFmpeg rendering failed.")
 
         if not temporary_output.is_file() or temporary_output.stat().st_size == 0:
-            raise RuntimeError(
-                "FFmpeg reported success but produced no output file."
-            )
+            raise RuntimeError("FFmpeg reported success but produced no output file.")
 
         temporary_output.replace(output)
     finally:
@@ -179,6 +204,8 @@ def render(video, start, end, output, cfg):
     final_probe = probe(output)
 
     return {
+        "ffmpeg_version": _ffmpeg_version(),
+        "command_used": command_used,
         "canvas": {
             "width": width,
             "height": height,
@@ -197,13 +224,24 @@ def render(video, start, end, output, cfg):
             "horizontal_position": "center",
             "vertical_position": "center",
             "small_sources_upscaled": True,
+            "fit_mode": "width_locked",
         },
         "cinematic_adjustment": {
-            "brightness": cfg.get("cinematic_brightness", 0.025),
-            "contrast": cfg.get("cinematic_contrast", 1.08),
-            "saturation": cfg.get("cinematic_saturation", 1.04),
+            "enabled": cinematic,
+            "brightness": cfg.get("cinematic_brightness", 0.0),
+            "contrast": cfg.get("cinematic_contrast", 1.10),
+            "saturation": cfg.get("cinematic_saturation", 1.03),
+            "gamma": cfg.get("cinematic_gamma", 1.02),
+            "sharpen": cfg.get("cinematic_sharpen", 0.30),
+            "vignette_divisor": cfg.get("cinematic_vignette_divisor", 7),
+            "description": "subtle contrast/color separation, gamma lift, restrained sharpening and vignette",
         },
         "encoder": "h264_nvenc" if used_gpu else "libx264",
-        "audio": {"codec": "aac", "bitrate": "192k"},
+        "encoder_requested": encoder_mode,
+        "nvenc_available": _nvenc_available() if wants_gpu else False,
+        "audio": {
+            "codec": "aac",
+            "bitrate": cfg.get("audio_bitrate", "192k"),
+        },
         "output_probe": final_probe,
     }

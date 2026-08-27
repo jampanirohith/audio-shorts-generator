@@ -1,11 +1,13 @@
 import argparse
 import hashlib
 import json
+import platform
 import shutil
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from modules.db import DB
+from modules.db import PlaylistDB, ReelDB
 from modules.hooks import detect
 from modules.video import probe, render
 from modules.youtube import download, info, playlist, search, choose
@@ -34,31 +36,21 @@ def _load_config():
 def _ensure_directories(cfg):
     Path(cfg["temp_dir"]).mkdir(parents=True, exist_ok=True)
     Path(cfg["reels_finished_dir"]).mkdir(parents=True, exist_ok=True)
-    Path(cfg["db_path"]).parent.mkdir(parents=True, exist_ok=True)
+    Path(cfg["playlist_db_path"]).parent.mkdir(parents=True, exist_ok=True)
+    Path(cfg["reels_db_path"]).parent.mkdir(parents=True, exist_ok=True)
 
 
 def _clean_temp(temp):
-    """Remove all temporary pipeline artifacts after a successful run.
-
-    Windows can briefly keep media files locked after a subprocess exits, so
-    cleanup retries before giving up. A cleanup failure never invalidates an
-    otherwise successful render, but it is reported to the caller.
-    """
     import gc
-    import time
-
     temp = Path(temp)
     if not temp.exists():
         return []
-
     gc.collect()
     failures = []
-
     for child in list(temp.iterdir()):
         removed = False
         last_error = None
-
-        for attempt in range(10):
+        for attempt in range(12):
             try:
                 if child.is_dir() and not child.is_symlink():
                     shutil.rmtree(child)
@@ -69,11 +61,9 @@ def _clean_temp(temp):
             except OSError as exc:
                 last_error = exc
                 gc.collect()
-                time.sleep(0.25 * (attempt + 1))
-
+                time.sleep(0.20 * (attempt + 1))
         if not removed:
             failures.append((child, last_error))
-
     return failures
 
 
@@ -85,8 +75,6 @@ def _write_json_atomic(path, data):
         encoding="utf-8",
     )
     temporary.replace(path)
-
-
 
 
 def _sha256(path):
@@ -105,34 +93,25 @@ def _output_duration(probe_data, fallback):
 
 
 def _build_final_metadata(
-    *,
-    serial,
-    original,
-    selected,
-    selected_info,
-    search_results,
-    ranking,
-    reference_info,
-    hook,
-    render_result,
-    source_file,
-    source_probe,
-    final_path,
-    final_probe,
-    cfg,
-    mode,
+    *, serial, original, selected, selected_info, search_results,
+    ranking, reference_info, hook, render_result, source_file,
+    source_probe, final_path, final_probe, cfg, mode, started_at,
 ):
     source_file = Path(source_file)
     final_path = Path(final_path)
+    source_size = source_file.stat().st_size
 
     return {
-        "schema_version": "3.0",
+        "schema_version": "4.0",
         "generated_at_utc": utc_now(),
+        "processing_started_at_utc": started_at,
+        "processing_finished_at_utc": utc_now(),
         "serial": int(serial),
         "status": "FINISHED",
 
         "source_identity": {
             "identity_type": "chosen_youtube_video",
+            "primary_reference": "selected_video_id",
             "selected_video_id": selected["id"],
             "selected_video_url": selected["url"],
             "selected_video_title": selected["title"],
@@ -143,57 +122,43 @@ def _build_final_metadata(
         "original_playlist_source_metadata": reference_info or {},
 
         "chosen_video": {
-            "search_result": selected,
+            "search_result_at_selection": selected,
             "complete_ytdlp_metadata": selected_info,
         },
 
         "youtube_search": {
-            "query": original["title"],
+            "query": original.get("title", ""),
             "selection_mode": mode,
-            "result_count": len(search_results),
-            "results": search_results,
-            "ranking": ranking,
+            "result_count": len(search_results or []),
+            "results": search_results or [],
+            "ranking": ranking or [],
             "ranking_policy": {
                 "channel_reputation_used": False,
-                "title_similarity_weight": 0.58,
+                "title_similarity_weight": 0.54,
                 "video_wording_weight": 0.22,
-                "view_count_weight": 0.10,
-                "source_duration_weight": 0.10,
+                "view_count_weight": 0.08,
+                "source_duration_weight": 0.16,
                 "view_count_normalization": "log10 relative to largest returned result",
                 "strong_video_wording_bonus": 0.06,
-                "title_matching": (
-                    "exact normalized core-song match is strongest; "
-                    "fuzzy matching tolerates spacing/spelling variants"
-                ),
-                "quality_penalties": (
-                    "lyrics/audio/alternate versions/covers/BTS/promos/"
-                    "collections are penalized so they do not beat a real "
-                    "video-song result merely because of views"
-                ),
-                "reference_metadata": (
-                    "original playlist video metadata is read silently for "
-                    "duration-based disambiguation; the original video is "
-                    "never downloaded or assigned a serial"
-                ),
-            },
+                "metadata_title_disambiguation": True,
+                },
         },
 
         "downloaded_source": {
             "filename": source_file.name,
             "temporary_path": str(source_file.resolve()),
-            "size_bytes": source_file.stat().st_size,
+            "size_bytes": source_size,
             "sha256": _sha256(source_file),
             "ffprobe": source_probe,
+            "complete_source_metadata_captured_before_cleanup": True,
             "deleted_after_success": True,
             "cookies_file_used": (
                 str((Path.home() / "cookies.txt").resolve())
-                if (Path.home() / "cookies.txt").is_file()
-                else None
+                if (Path.home() / "cookies.txt").is_file() else None
             ),
         },
 
         "hook": hook,
-
         "render": render_result,
 
         "final_reel": {
@@ -206,10 +171,7 @@ def _build_final_metadata(
             "height": render_result["canvas"]["height"],
             "aspect_ratio": render_result["canvas"]["aspect_ratio"],
             "fps": render_result["canvas"]["fps"],
-            "duration_seconds": _output_duration(
-                final_probe,
-                hook["duration"],
-            ),
+            "duration_seconds": _output_duration(final_probe, hook["duration"]),
             "ffprobe": final_probe,
         },
 
@@ -218,9 +180,21 @@ def _build_final_metadata(
             "browser_cookie_extraction": False,
             "youtube_channel_reputation_used": False,
             "youtube_view_count_used": True,
+            "playlist_order_persisted": True,
+            "two_database_architecture": True,
+            "selected_video_is_primary_reel_reference": True,
             "working_files_directly_in_temp": True,
             "temp_cleanup_after_success_only": True,
+            "atomic_finalization": True,
+            "atomic_json_write": True,
             "gpu_encoder_mode": cfg.get("video_encoder", "auto"),
+        },
+
+        "runtime": {
+            "python_version": platform.python_version(),
+            "platform": platform.platform(),
+            "machine": platform.machine(),
+            "processor": platform.processor(),
         },
 
         "config_snapshot": cfg,
@@ -228,37 +202,33 @@ def _build_final_metadata(
 
 
 def process_selected(
-    original,
-    selected,
-    serial,
-    db,
-    cfg,
-    *,
-    search_results=None,
-    ranking=None,
-    reference_info=None,
-    mode="automatic",
+    original, selected, serial, reel_db, playlist_db, cfg, *,
+    search_results=None, ranking=None, reference_info=None,
+    mode="automatic", playlist_id=None,
 ):
     temp = Path(cfg["temp_dir"])
     final_dir = Path(cfg["reels_finished_dir"])
     final_dir.mkdir(parents=True, exist_ok=True)
     temp.mkdir(parents=True, exist_ok=True)
 
-    previous_row = db.get(serial)
+    previous_row = reel_db.get(serial)
     previous_final = (
         Path(previous_row["final_path"])
-        if previous_row and previous_row["final_path"]
-        else None
+        if previous_row and previous_row["final_path"] else None
     )
     previous_json = (
         Path(previous_row["final_json_path"])
-        if previous_row and previous_row["final_json_path"]
-        else None
+        if previous_row and previous_row["final_json_path"] else None
     )
 
-    db.set_selected(serial, original, selected)
-    db.set_status(serial, "PROCESSING", None)
-    db.event(serial, "PROCESSING", f"Selected video: {selected['id']}")
+    started_at = utc_now()
+    reel_db.set_selected(serial, original, selected, search_results, mode)
+    reel_db.set_status(serial, "PROCESSING", None)
+    reel_db.event(serial, "PROCESSING", f"Selected video: {selected['id']}")
+    if playlist_id:
+        playlist_db.set_status(
+            playlist_id, original["id"], "PROCESSING", serial=serial
+        )
 
     try:
         print("\nDownloading selected YouTube video to temp/ ...", flush=True)
@@ -279,62 +249,53 @@ def process_selected(
             flush=True,
         )
         render_result = render(
-            source_file,
-            hook["start"],
-            hook["end"],
-            final,
-            cfg,
+            source_file, hook["start"], hook["end"], final, cfg
         )
         final_probe = probe(final)
 
         metadata = _build_final_metadata(
-            serial=serial,
-            original=original,
-            selected=selected,
-            selected_info=selected_info,
-            search_results=search_results or [],
-            ranking=ranking or [],
-            reference_info=reference_info or {},
-            hook=hook,
-            render_result=render_result,
-            source_file=source_file,
-            source_probe=source_probe,
-            final_path=final,
-            final_probe=final_probe,
-            cfg=cfg,
-            mode=mode,
+            serial=serial, original=original, selected=selected,
+            selected_info=selected_info, search_results=search_results or [],
+            ranking=ranking or [], reference_info=reference_info,
+            hook=hook, render_result=render_result,
+            source_file=source_file, source_probe=source_probe,
+            final_path=final, final_probe=final_probe, cfg=cfg,
+            mode=mode, started_at=started_at,
         )
 
+        # Both permanent artifacts must exist before the DB can say FINISHED.
         _write_json_atomic(json_path, metadata)
-        db.finish(serial, metadata, final, json_path)
-        db.event(serial, "FINISHED", str(final))
+        if not final.is_file() or not json_path.is_file():
+            raise RuntimeError("Final reel or final JSON was not created.")
 
-        # A reselection can change the YouTube video ID and therefore the
-        # permanent filename. Remove the superseded pair only after the new
-        # reel and JSON have been safely committed.
-        old_paths = (previous_final, previous_json)
-        new_paths = {final.resolve(), json_path.resolve()}
-        for old_path in old_paths:
-            if old_path and old_path.exists() and old_path.resolve() not in new_paths:
+        reel_db.finish(serial, metadata, final, json_path)
+        reel_db.event(serial, "FINISHED", str(final))
+        if playlist_id:
+            playlist_db.set_status(
+                playlist_id, original["id"], "FINISHED", serial=serial
+            )
+
+        # Replace old reel only after the new pair and database record are safe.
+        for old_path in (previous_final, previous_json):
+            if old_path and old_path.exists():
                 try:
-                    old_path.unlink()
-                except OSError as cleanup_error:
-                    db.event(
-                        serial,
-                        "CLEANUP_WARNING",
-                        f"Could not remove superseded file {old_path}: {cleanup_error}",
+                    if old_path.resolve() not in {final.resolve(), json_path.resolve()}:
+                        old_path.unlink()
+                except OSError as exc:
+                    reel_db.event(
+                        serial, "CLEANUP_WARNING",
+                        f"Could not remove superseded file {old_path}: {exc}"
                     )
 
         cleanup_failures = _clean_temp(temp)
         if cleanup_failures:
             for leftover, cleanup_error in cleanup_failures:
-                db.event(
-                    serial,
-                    "CLEANUP_WARNING",
-                    f"Could not remove temporary file {leftover}: {cleanup_error}",
+                reel_db.event(
+                    serial, "CLEANUP_WARNING",
+                    f"Could not remove temporary file {leftover}: {cleanup_error}"
                 )
             print(
-                "WARNING: some temporary files could not be deleted; " 
+                "WARNING: some temporary files could not be deleted; "
                 "the reel itself was completed successfully.",
                 flush=True,
             )
@@ -349,109 +310,128 @@ def process_selected(
         return "done"
 
     except Exception as exc:
-        db.set_status(serial, "ERROR", str(exc))
-        db.event(serial, "ERROR", str(exc))
+        reel_db.set_status(serial, "ERROR", str(exc))
+        reel_db.event(serial, "ERROR", str(exc))
+        if playlist_id:
+            playlist_db.set_status(
+                playlist_id, original["id"], "ERROR", serial=serial, error=str(exc)
+            )
         print(f"\nERROR while processing serial {serial:04d}: {exc}", flush=True)
         print("Temporary files were retained in temp/ for debugging.", flush=True)
         return "error"
 
 
-def process_playlist_entry(entry, db, cfg):
+def process_playlist_entry(entry, playlist_id, playlist_db, reel_db, cfg):
     original = {
-        "playlist_id": entry.get("id"),
+        "playlist_id": playlist_id,
+        "playlist_title": entry.get("playlist_title", ""),
         "title": entry.get("title", ""),
         "url": entry.get("url", ""),
+        "id": entry.get("id"),
         "playlist_index": entry.get("playlist_index"),
     }
 
-    print_header(f"CURRENT PLAYLIST ENTRY: {original['title']}")
+    row = playlist_db.get(playlist_id, original["id"])
+    if row and row["processing_status"] in {"FINISHED", "SKIPPED", "ERROR"}:
+        print_header(
+            f"CURRENT PLAYLIST ENTRY [{original['playlist_index']}]: {original['title']}"
+        )
+        print(f"Status remembered in playlist database: {row['processing_status']}")
+        if row["final_serial"]:
+            print(f"Final reel serial: {int(row['final_serial']):04d}")
+        if row["last_error"]:
+            print(f"Last error: {row['last_error']}")
+        print("No repeated processing performed.", flush=True)
+        return "skip"
+
+    print_header(
+        f"CURRENT PLAYLIST ENTRY [{original['playlist_index']}]: {original['title']}"
+    )
     print(f"Original playlist URL: {original['url']}", flush=True)
 
     try:
         print("\nSearching YouTube ...", flush=True)
-        results = search(
-            original["title"],
-            cfg.get("top_youtube_results", 10),
-        )
+        results = search(original["title"], cfg.get("top_youtube_results", 10))
+
         reference_info = None
         if cfg.get("automation", {}).get("auto_youtube_selection", True):
-            # Read the original playlist video's metadata only as a silent
-            # reference for disambiguating search results. The original video
-            # is never downloaded and is not assigned a serial.
             try:
                 reference_info = info(original["url"])
             except Exception:
                 reference_info = None
 
         selected, ranking = choose(
-            results,
-            original["title"],
-            cfg,
+            results, original["title"], cfg,
             reference_info=reference_info,
         )
 
-        if selected == "skip":
-            db.record_skip(original, "User skipped YouTube selection")
+        if isinstance(selected, str) and selected == "skip":
+            reel_db.record_skip(original, "User skipped YouTube selection")
+            playlist_db.set_status(
+                playlist_id, original["id"], "SKIPPED",
+                error="User skipped YouTube selection"
+            )
             print("SKIPPED WITHOUT ERRORS.", flush=True)
             return "skip"
 
-        if selected == "quit":
+        if isinstance(selected, str) and selected == "quit":
             print("Quit requested.", flush=True)
             return "quit"
 
-        serial = db.get_or_create_serial(selected)
-        row = db.get(serial)
+        serial = reel_db.get_or_create_serial(selected)
+        reel_row = reel_db.get(serial)
 
         print(f"\nCHOSEN YOUTUBE VIDEO [{serial:04d}]")
         print(f"Title: {selected['title']}")
         print(f"URL:   {selected['url']}", flush=True)
 
-        if row["status"] in {"FINISHED", "DONE"}:
-            print(
-                "Already FINISHED in database; skipping duplicate processing.",
-                flush=True,
+        if reel_row["status"] == "FINISHED":
+            playlist_db.set_status(
+                playlist_id, original["id"], "FINISHED", serial=serial
             )
+            print("Already FINISHED in reels database; skipping duplicate processing.", flush=True)
             return "done"
 
-        duplicate_serial = db.selected_exists(
-            selected["id"],
-            exclude_serial=serial,
+        duplicate_serial = reel_db.selected_exists(
+            selected["id"], exclude_serial=serial
         )
         if duplicate_serial is not None:
             reason = (
                 f"Chosen YouTube video is already FINISHED under serial "
                 f"{duplicate_serial:04d}."
             )
-            db.set_status(serial, "SKIPPED", reason)
-            db.record_skip(original, reason, serial)
+            reel_db.record_skip(original, reason, serial)
+            playlist_db.set_status(
+                playlist_id, original["id"], "SKIPPED",
+                serial=serial, error=reason
+            )
             print(f"SKIPPED: {reason}", flush=True)
             return "skip"
 
+        playlist_db.update_serial(playlist_id, original["id"], serial)
         return process_selected(
-            original,
-            selected,
-            serial,
-            db,
-            cfg,
-            search_results=results,
-            ranking=ranking,
+            original, selected, serial, reel_db, playlist_db, cfg,
+            search_results=results, ranking=ranking,
             reference_info=reference_info,
             mode="automatic" if cfg.get("automation", {}).get(
                 "auto_youtube_selection", True
             ) else "manual",
+            playlist_id=playlist_id,
         )
 
     except Exception as exc:
-        db.event(None, "ERROR", str(exc))
+        playlist_db.set_status(
+            playlist_id, original["id"], "ERROR", error=str(exc)
+        )
+        reel_db.event(None, "ERROR", str(exc))
         print(f"\nERROR before processing could begin: {exc}", flush=True)
         return "error"
 
 
-def retry_serial(serial, db, cfg):
-    row = db.get(serial)
+def retry_serial(serial, reel_db, playlist_db, cfg):
+    row = reel_db.get(serial)
     if not row:
         raise SystemExit(f"Serial {serial} was not found.")
-
     original = json.loads(row["original_json"])
     selected = json.loads(row["selected_json"])
     if not selected.get("id"):
@@ -461,50 +441,101 @@ def retry_serial(serial, db, cfg):
     print(f"Title: {selected['title']}")
     print(f"URL:   {selected['url']}", flush=True)
 
+    playlist_id = original.get("playlist_id")
     reference_info = None
     try:
-        reference_info = info(original["url"])
+        if original.get("url"):
+            reference_info = info(original["url"])
     except Exception:
-        reference_info = None
+        pass
 
     return process_selected(
-        original,
-        selected,
-        serial,
-        db,
-        cfg,
-        search_results=[],
-        ranking=[],
-        reference_info=reference_info,
-        mode="retry",
+        original, selected, serial, reel_db, playlist_db, cfg,
+        search_results=[], ranking=[], reference_info=reference_info,
+        mode="retry", playlist_id=playlist_id,
+    )
+
+
+def reselect_serial(serial, reel_db, playlist_db, cfg):
+    row = reel_db.get(serial)
+    if not row:
+        raise SystemExit(f"Serial {serial} was not found.")
+
+    original = json.loads(row["original_json"])
+    if not original.get("title"):
+        raise SystemExit(f"Serial {serial} has no original playlist title.")
+
+    print_header(f"RESELECTING FINAL REEL [{serial:04d}]")
+    print(f"Original playlist title: {original.get('title', '')}")
+    print(f"Original playlist URL:   {original.get('url', '')}")
+    print(f"Current chosen video:    {row['selected_video_title']}")
+    print(f"Current chosen URL:      {row['selected_video_url']}")
+
+    print("\nSearching YouTube ...", flush=True)
+    results = search(original["title"], cfg.get("top_youtube_results", 10))
+    selected, _ = choose(results, original["title"], cfg, force_manual=True)
+
+    if isinstance(selected, str):
+        if selected == "skip":
+            print("Reselection skipped.", flush=True)
+            return "skip"
+        if selected == "quit":
+            print("Reselection cancelled.", flush=True)
+            return "quit"
+
+    duplicate_serial = reel_db.selected_exists(
+        selected["id"], exclude_serial=serial
+    )
+    if duplicate_serial is not None:
+        reason = (
+            f"That YouTube video is already FINISHED under serial "
+            f"{duplicate_serial:04d}."
+        )
+        reel_db.set_status(serial, "ERROR", reason)
+        reel_db.event(serial, "ERROR", reason)
+        raise SystemExit(reason)
+
+    print(f"\nRESELECTED VIDEO FOR SERIAL [{serial:04d}]")
+    print(f"Title: {selected['title']}")
+    print(f"URL:   {selected['url']}", flush=True)
+
+    playlist_id = original.get("playlist_id")
+    return process_selected(
+        original, selected, serial, reel_db, playlist_db, cfg,
+        search_results=results, ranking=[], mode="manual_reselection",
+        playlist_id=playlist_id,
     )
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Generate one final hook reel per selected YouTube video."
+        description="Professional YouTube playlist-to-reel pipeline."
     )
+    parser.add_argument("--retry", type=int, help="reprocess stored chosen video for a reel serial")
+    parser.add_argument("--reselect", type=int, help="manually choose a new YouTube video for a reel serial")
+    parser.add_argument("--reset", type=int, help="reset a reel serial to PENDING")
     parser.add_argument(
-        "--retry",
-        type=int,
-        help="reprocess the stored chosen video for a serial",
-    )
-    parser.add_argument(
-        "--reset",
-        type=int,
-        help="reset a serial to PENDING before normal/retry processing",
+        "--retry-errors", action="store_true",
+        help="retry playlist entries remembered as ERROR"
     )
     args = parser.parse_args()
 
     cfg = _load_config()
     _ensure_directories(cfg)
 
-    with DB(cfg["db_path"]) as db:
+    with PlaylistDB(cfg["playlist_db_path"]) as playlist_db, ReelDB(cfg["reels_db_path"]) as reel_db:
+        playlist_db.recover_processing()
+        reel_db.recover_processing()
+
         if args.reset is not None:
-            db.reset(args.reset)
+            reel_db.reset(args.reset)
 
         if args.retry is not None:
-            retry_serial(args.retry, db, cfg)
+            retry_serial(args.retry, reel_db, playlist_db, cfg)
+            return
+
+        if args.reselect is not None:
+            reselect_serial(args.reselect, reel_db, playlist_db, cfg)
             return
 
         entries = playlist(cfg["playlist_url"])
@@ -512,8 +543,63 @@ def main():
             print("No playlist entries were found.")
             return
 
-        for entry in entries:
-            result = process_playlist_entry(entry, db, cfg)
+        playlist_id = entries[0].get("playlist_id") or PlaylistDB.playlist_id_from_url(
+            cfg["playlist_url"]
+        )
+        playlist_title = entries[0].get("playlist_title", "")
+
+        playlist_id, run_id, stored_entries, changes = playlist_db.sync(
+            cfg["playlist_url"], entries, playlist_title
+        )
+
+        # Rebuild playlist status from the permanent reel database. This is
+        # especially important on the first run after upgrading from the old
+        # single-database version: completed reels must not be processed again.
+        for entry_row in stored_entries:
+            reel_row = reel_db.by_original_video_id(entry_row["original_video_id"])
+            if not reel_row:
+                continue
+            reel_status = str(reel_row["status"] or "").upper()
+            if reel_status in {"FINISHED", "SKIPPED", "ERROR"}:
+                playlist_db.set_status(
+                    playlist_id,
+                    entry_row["original_video_id"],
+                    reel_status,
+                    serial=reel_row["serial"],
+                    error=reel_row["error"],
+                )
+        stored_entries = playlist_db.current_entries(playlist_id)
+
+        print_header(f"PLAYLIST SNAPSHOT RUN #{run_id}")
+        print(f"Playlist: {playlist_title or playlist_id}")
+        print(f"Current entries: {len(stored_entries)}")
+        print(
+            f"Changes since previous run: +{changes['added']} added, "
+            f"-{changes['removed']} removed, "
+            f"{changes['reordered']} reordered, "
+            f"{changes['changed']} changed",
+            flush=True,
+        )
+
+        if args.retry_errors:
+            targets = [
+                row for row in stored_entries
+                if row["processing_status"] in {"PENDING", "ERROR"}
+            ]
+        else:
+            targets = [
+                row for row in stored_entries
+                if row["processing_status"] == "PENDING"
+            ]
+
+        if not targets:
+            print("\nNo unprocessed playlist entries. Nothing repeated.", flush=True)
+            return
+
+        for row in targets:
+            result = process_playlist_entry(
+                dict(row), playlist_id, playlist_db, reel_db, cfg
+            )
             if result == "quit":
                 break
 

@@ -6,3 +6,8 @@ reels/finished/*
 state/*
 cookies.txt
 .env
+
+*.rendering.mp4
+*.writing.json
+
+.cache
