@@ -127,6 +127,20 @@ class PlaylistDB:
         playlist_id = self.playlist_id_from_url(playlist_url)
         now = utc_now()
 
+        # yt-dlp can expose the same video more than once in unusual playlist
+        # snapshots.  The DB key is (playlist_id, original_video_id), so make
+        # the incoming snapshot unique before any INSERT/UPDATE occurs.
+        # Preserve the first occurrence because playlist order is meaningful.
+        normalized_entries = []
+        seen_video_ids = set()
+        for entry in entries or []:
+            vid = entry.get("id")
+            if not vid or vid in seen_video_ids:
+                continue
+            seen_video_ids.add(vid)
+            normalized_entries.append(dict(entry))
+        entries = normalized_entries
+
         existing_playlist = self.cx.execute(
             "SELECT * FROM playlists WHERE playlist_id=?", (playlist_id,)
         ).fetchone()

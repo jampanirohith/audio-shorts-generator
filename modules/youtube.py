@@ -89,13 +89,19 @@ def playlist(url):
 
 
 def search(query, count=10):
+    # Use yt-dlp's explicit search selector.  Keeping the query as a separate
+    # argument avoids clients/wrappers treating "ytsearch10:" as an ordinary
+    # URL (which produces: Unsupported url scheme: "ytsearch10").
+    count = max(1, int(count))
     code, output = _run([
-        f"ytsearch{int(count)}:{query}",
+        "--default-search", "ytsearch",
         "--flat-playlist",
+        "--playlist-end", str(count),
         "--dump-json",
         "--skip-download",
         "--quiet",
         "--no-warnings",
+        str(query or "").strip(),
     ])
     if code:
         raise RuntimeError(output[-8000:] or "yt-dlp YouTube search failed.")

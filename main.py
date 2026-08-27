@@ -322,13 +322,42 @@ def process_selected(
 
 
 def process_playlist_entry(entry, playlist_id, playlist_db, reel_db, cfg):
+    # `sync()` returns SQLite rows, not the raw yt-dlp playlist dictionaries.
+    # Normalize both shapes here so the persisted playlist remains the
+    # source-of-truth and fields such as title/URL/index are never lost.
+    metadata = {}
+    raw_metadata = entry.get("metadata_json")
+    if raw_metadata:
+        try:
+            metadata = json.loads(raw_metadata) if isinstance(raw_metadata, str) else dict(raw_metadata)
+        except (TypeError, ValueError):
+            metadata = {}
+
     original = {
         "playlist_id": playlist_id,
-        "playlist_title": entry.get("playlist_title", ""),
-        "title": entry.get("title", ""),
-        "url": entry.get("url", ""),
-        "id": entry.get("id"),
-        "playlist_index": entry.get("playlist_index"),
+        "playlist_title": (
+            entry.get("playlist_title")
+            or metadata.get("playlist_title")
+            or ""
+        ),
+        "title": (
+            entry.get("title")
+            or entry.get("original_title")
+            or ""
+        ),
+        "url": (
+            entry.get("url")
+            or entry.get("original_url")
+            or ""
+        ),
+        "id": (
+            entry.get("id")
+            or entry.get("original_video_id")
+        ),
+        "playlist_index": (
+            entry.get("playlist_index")
+            or entry.get("current_position")
+        ),
     }
 
     row = playlist_db.get(playlist_id, original["id"])
