@@ -1,39 +1,16 @@
-import json
-import math
-import re
-import subprocess
-import unicodedata
+import json,math,re,subprocess,sys,unicodedata
 from pathlib import Path
-
-
-YOUTUBE_WATCH_RE = re.compile(
-    r"https?://(?:www\.)?youtube\.com/watch\?v=([A-Za-z0-9_-]+)"
-)
-YOUTUBE_SHORT_RE = re.compile(r"https?://youtu\.be/([A-Za-z0-9_-]+)")
-
-
-def _cookie_args():
-    """Use only the explicit home-directory cookie file, when present."""
-    cookie_file = Path.home() / "cookies.txt"
-    return ["--cookies", str(cookie_file)] if cookie_file.is_file() else []
-
-
-def clean_url(url):
-    """Extract a plain YouTube watch URL from accidental surrounding text."""
-    text = str(url or "").strip()
-    match = YOUTUBE_WATCH_RE.search(text)
-    if match:
-        return f"https://www.youtube.com/watch?v={match.group(1)}"
-    match = YOUTUBE_SHORT_RE.search(text)
-    if match:
-        return f"https://youtu.be/{match.group(1)}"
-    return text
-
-
-def _run(args):
-    cmd = ["yt-dlp", "--ignore-config", *_cookie_args(), *args]
+from rapidfuzz.fuzz import ratio,token_set_ratio,WRatio
+WATCH_RE=re.compile(r'https?://(?:www\.)?youtube\.com/watch\?v=([\w-]+)'); SHORT_RE=re.compile(r'https?://youtu\.be/([\w-]+)')
+def _cookies():
+ p=Path.home()/"cookies.txt"; return ["--cookies",str(p)] if p.is_file() else []
+def run(args,check=True):
+    # Invoke yt-dlp through the active Python interpreter so the project
+    # uses the virtual-environment installation instead of requiring a
+    # separate yt-dlp.exe on PATH.
+    cmd=[sys.executable,"-m","yt_dlp","--ignore-config",*_cookies(),*args]
     try:
-        proc = subprocess.run(
+        p=subprocess.run(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -41,415 +18,120 @@ def _run(args):
             encoding="utf-8",
             errors="replace",
         )
-    except FileNotFoundError as exc:
+    except Exception as e:
+        raise RuntimeError(f"Could not start yt-dlp via Python: {e}") from e
+    if check and p.returncode:
+        output=p.stdout.strip()
         raise RuntimeError(
-            "yt-dlp was not found. Install it in the active environment."
-        ) from exc
-    return proc.returncode, proc.stdout
+            f"yt-dlp failed (exit code {p.returncode}).\\n"
+            f"{output[-12000:] if output else 'yt-dlp produced no output.'}"
+        )
+    return p.returncode,p.stdout
 
+def json_output(args,context):
+    rc,out=run(args,check=False)
+    if rc != 0:
+        raise RuntimeError(
+            f"{context}: yt-dlp failed (exit code {rc}).\\n"
+            f"{out.strip()[-12000:] if out.strip() else 'No output was returned.'}"
+        )
+    if not out.strip():
+        raise RuntimeError(
+            f"{context}: yt-dlp returned no output. "
+            "Check the yt-dlp error above, playlist URL, network access, "
+            "cookies, and YouTube availability."
+        )
+    try:
+        return json.loads(out)
+    except json.JSONDecodeError as e:
+        raise RuntimeError(
+            f"{context}: yt-dlp returned non-JSON output.\\n"
+            f"{out.strip()[-12000:]}"
+        ) from e
 
+def clean_url(u):
+ s=str(u or "").strip();m=WATCH_RE.search(s)
+ if m:return f"https://www.youtube.com/watch?v={m.group(1)}"
+ m=SHORT_RE.search(s);return f"https://youtu.be/{m.group(1)}" if m else s
 def playlist(url):
-    code, output = _run([
-        "--flat-playlist",
-        "--dump-single-json",
-        "--skip-download",
-        "--quiet",
-        "--no-warnings",
-        clean_url(url),
-    ])
-    if code:
-        raise RuntimeError(output[-8000:] or "yt-dlp playlist discovery failed.")
-
-    try:
-        data = json.loads(output)
-    except json.JSONDecodeError as exc:
-        raise RuntimeError("yt-dlp returned invalid playlist JSON.") from exc
-
-    playlist_id = data.get("id") or ""
-    playlist_title = data.get("title") or ""
-    rows = []
-    for index, entry in enumerate(data.get("entries") or [], 1):
-        if not entry:
-            continue
-        video_id = entry.get("id")
-        if not video_id:
-            continue
-        rows.append({
-            "playlist_index": index,
-            "playlist_id": playlist_id,
-            "playlist_title": playlist_title,
-            "title": entry.get("title") or "",
-            "id": video_id,
-            "url": clean_url(
-                entry.get("webpage_url")
-                or f"https://www.youtube.com/watch?v={video_id}"
-            ),
-        })
-    return rows
-
-
-def search(query, count=10):
-    # Use yt-dlp's explicit search selector.  Keeping the query as a separate
-    # argument avoids clients/wrappers treating "ytsearch10:" as an ordinary
-    # URL (which produces: Unsupported url scheme: "ytsearch10").
-    count = max(1, int(count))
-    code, output = _run([
-        "--default-search", "ytsearch",
-        "--flat-playlist",
-        "--playlist-end", str(count),
-        "--dump-json",
-        "--skip-download",
-        "--quiet",
-        "--no-warnings",
-        str(query or "").strip(),
-    ])
-    if code:
-        raise RuntimeError(output[-8000:] or "yt-dlp YouTube search failed.")
-
-    rows = []
-    for line in output.splitlines():
-        try:
-            data = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-
-        video_id = data.get("id")
-        if not video_id:
-            continue
-
-        rows.append({
-            "id": video_id,
-            "url": clean_url(
-                data.get("webpage_url")
-                or f"https://www.youtube.com/watch?v={video_id}"
-            ),
-            "title": data.get("title") or "",
-            "channel": data.get("channel") or data.get("uploader") or "",
-            "uploader": data.get("uploader"),
-            "duration": data.get("duration"),
-            "view_count": data.get("view_count"),
-            "upload_date": data.get("upload_date"),
-        })
-    return rows
-
-
-def _norm(value):
-    """Normalize titles without discarding non-Latin Unicode letters."""
-    text = unicodedata.normalize("NFKC", value or "").lower()
-    return re.sub(r"[^\w]+", " ", text, flags=re.UNICODE).strip()
-
-
-def _compact(value):
-    """Normalize spacing/repeated-letter spelling variants for song titles."""
-    text = unicodedata.normalize("NFKC", value or "").lower()
-    text = re.sub(r"[\W_]+", "", text, flags=re.UNICODE)
-    # Handles common YouTube spelling variants such as
-    # "Koppamga" vs "Kopam Ga" without changing the displayed title.
-    return re.sub(r"(.)\1+", r"\1", text)
-
-
-def _source_song_core(value):
-    """
-    Extract the meaningful song-title part from a playlist title.
-
-    Examples:
-      Koppamga Koppamga (From "Mr. Majnu") -> Koppamga Koppamga
-      Urike Urike -> Urike Urike
-    """
-    raw = unicodedata.normalize("NFKC", value or "")
-    raw = re.sub(r"\s*\(\s*from\b[^)]*\)", " ", raw, flags=re.I)
-    raw = re.sub(r"\s*\[\s*from\b[^\]]*\]", " ", raw, flags=re.I)
-    normalized = _norm(raw)
-    # "From ..." is a wrapper in playlist/streaming titles, not part of
-    # the song name used to identify the YouTube music video.
-    normalized = re.sub(r"\bfrom\b.*$", "", normalized).strip()
-    return re.sub(r"\s+", " ", normalized)
-
-
-def _title_score(query, title):
-    from rapidfuzz.fuzz import ratio, token_set_ratio, WRatio
-
-    q = _source_song_core(query)
-    t = _norm(title)
-    if not q or not t:
-        return 0.0
-
-    q_compact = _compact(q)
-    t_compact = _compact(t)
-
-    # Exact core-song match is the strongest signal. This prevents a result
-    # such as "Urike Chilaka" from being treated as an exact match for
-    # "Urike Urike" merely because one token overlaps.
-    if q_compact and q_compact in t_compact:
-        return 1.0
-
-    query_tokens = q.split()
-    title_tokens = set(t.split())
-    overlap = (
-        sum(1 for token in query_tokens if token in title_tokens)
-        / max(1, len(query_tokens))
-    )
-
-    fuzzy = max(
-        ratio(q, t),
-        token_set_ratio(q, t),
-        WRatio(q, t),
-    ) / 100.0
-    compact_fuzzy = ratio(q_compact, t_compact) / 100.0
-
-    # A fuzzy match is allowed to tolerate punctuation, spacing and minor
-    # spelling differences, but partial-token matches are capped.
-    score = max(fuzzy * 0.90, compact_fuzzy)
-    if overlap < 1.0:
-        score *= 0.75 + 0.25 * overlap
-    return min(1.0, score)
-
-
-def _video_wording_score(title, keywords):
-    normalized = _norm(title)
-
-    if re.search(r"\\bfull\\s+video\\s+song\\b", normalized):
-        score = 1.00
-    elif re.search(r"\\bvideo\\s+song\\b", normalized):
-        score = 0.95
-    elif re.search(r"\\bfull\\s+video\\b", normalized):
-        score = 0.90
-    elif re.search(r"\\b(?:official\\s+)?(?:music\\s+)?video\\b", normalized):
-        score = 0.85
-    else:
-        score = 0.0
-
-    for keyword in keywords:
-        key = _norm(keyword)
-        if not key:
-            continue
-        if "video song" in key:
-            score = max(score, 0.95)
-        elif "full video" in key:
-            score = max(score, 0.90)
-
-    return score
-
-
-_QUALITY_PENALTIES = (
-    (r"\b(?:slowed|reverb|sped\s*up|nightcore)\b", 0.14, "alternate_speed"),
-    (r"\b(?:remix|remastered|8d|8d\s+audio|lofi|lo-fi)\b", 0.12, "alternate_version"),
-    (r"\b(?:cover|karaoke|instrumental)\b", 0.20, "cover_or_instrumental"),
-    (r"\b(?:bts|behind\s+the\s+scenes|making)\b", 0.22, "behind_the_scenes"),
-    (r"\b(?:teaser|trailer|promo|shorts?)\b", 0.24, "promo_or_short"),
-    (r"\b(?:audio|audio\s+song)\b", 0.16, "audio_only"),
-    (r"\b(?:jukebox|playlist|mix)\b", 0.22, "collection"),
-)
-
-
-def _quality_penalty(title):
-    normalized = _norm(title)
-    penalty = 0.0
-    reasons = []
-    for pattern, amount, reason in _QUALITY_PENALTIES:
-        if re.search(pattern, normalized):
-            penalty += amount
-            reasons.append(reason)
-    return min(0.45, penalty), reasons
-
-def _duration_score(reference_duration, candidate_duration):
-    try:
-        ref = float(reference_duration)
-        cand = float(candidate_duration)
-    except (TypeError, ValueError):
-        return 0.0
-
-    if ref <= 0 or cand <= 0:
-        return 0.0
-
-    difference = abs(ref - cand)
-    # Full-song uploads normally have very similar duration. The score
-    # degrades smoothly rather than requiring an exact duration.
-    return max(0.0, 1.0 - difference / max(ref * 0.25, 5.0))
-
-
-def rank_results(results, source_title, cfg, reference_info=None):
-    keywords = cfg.get("automation", {}).get(
-        "auto_youtube_keywords",
-        ["full video song", "video song", "full video"],
-    )
-    max_views = max((int(item.get("view_count") or 0) for item in results), default=0)
-    reference_duration = reference_info.get("duration") if isinstance(reference_info, dict) else None
-    reference_title = reference_info.get("title") if isinstance(reference_info, dict) else None
-
-    ranked = []
-    for result in results:
-        playlist_title_match = _title_score(source_title, result["title"])
-        metadata_title_match = _title_score(reference_title or source_title, result["title"])
-        title_match = max(playlist_title_match, metadata_title_match)
-        wording = _video_wording_score(result["title"], keywords)
-        views = int(result.get("view_count") or 0)
-        view_score = (
-            min(1.0, math.log10(views + 1) / math.log10(max_views + 1))
-            if max_views else 0.0
-        )
-        duration_score = _duration_score(reference_duration, result.get("duration"))
-        quality_penalty, penalty_reasons = _quality_penalty(result["title"])
-
-        score = (
-            0.54 * title_match
-            + 0.22 * wording
-            + 0.08 * view_score
-            + 0.16 * duration_score
-            - quality_penalty
-        )
-        if re.search(r"\b(?:full\s+video\s+song|video\s+song)\b", _norm(result["title"])):
-            score += 0.06
-
-        ranked.append({
-            "rank": 0,
-            "score": round(score, 6),
-            "title_match": round(title_match, 6),
-            "playlist_title_match": round(playlist_title_match, 6),
-            "metadata_title_match": round(metadata_title_match, 6),
-            "video_wording": round(wording, 6),
-            "view_score": round(view_score, 6),
-            "view_count": views,
-            "duration_score": round(duration_score, 6),
-            "quality_penalty": round(quality_penalty, 6),
-            "quality_penalty_reasons": penalty_reasons,
-            "result": result,
-        })
-
-    ranked.sort(
-        key=lambda item: (
-            item["score"], item["title_match"], item["video_wording"],
-            item["duration_score"], item["view_count"],
-        ),
-        reverse=True,
-    )
-    for index, item in enumerate(ranked, 1):
-        item["rank"] = index
-    return ranked
-
-def choose(
-    results,
-    source_title,
-    cfg,
-    force_manual=False,
-    reference_info=None,
-):
-    manual = force_manual or not cfg.get("automation", {}).get(
-        "auto_youtube_selection", True
-    )
-
-    if not manual:
-        ranked = rank_results(
-            results,
-            source_title,
-            cfg,
-            reference_info=reference_info,
-        )
-        if not ranked:
-            raise RuntimeError("No YouTube search results were returned.")
-
-        print("\nYouTube search results (channel reputation is not considered):")
-        for item in ranked:
-            result = item["result"]
-            print(
-                f"[{item['rank']}] score={item['score']:.3f} | "
-                f"title_match={item['title_match']:.3f} | "
-                f"video_wording={item['video_wording']:.3f} | "
-                f"views={result.get('view_count') or 0:,} | "
-                f"{result['title']} | {result.get('channel', '')}"
-            )
-
-        selected = ranked[0]["result"]
-        print("\nAUTO CHOSEN:")
-        print(f"[{selected['id']}] {selected['title']}")
-        print(f"URL: {selected['url']}", flush=True)
-        return selected, ranked
-
-    print("\nTop YouTube results:")
-    for index, result in enumerate(results, 1):
-        print(
-            f"[{index}] {result['title']} | {result.get('channel', '')} | "
-            f"views={result.get('view_count') or 0:,} | {result['url']}"
-        )
-
-    while True:
-        answer = input(
-            f"Choose YouTube result [1-{len(results)}], s=skip, q=quit: "
-        ).strip().lower()
-
-        if answer == "s":
-            return "skip", []
-        if answer == "q":
-            return "quit", []
-        if answer.isdigit() and 1 <= int(answer) <= len(results):
-            return results[int(answer) - 1], []
-
+ d=json_output(
+  ["--flat-playlist","--dump-single-json","--skip-download","--quiet","--no-warnings",clean_url(url)],
+  "Reading YouTube playlist"
+ )
+ pid=d.get("id") or "";title=d.get("title") or "";rows=[]
+ for e in d.get("entries") or []:
+  if e and e.get("id"):rows.append({"id":e["id"],"url":clean_url(e.get("webpage_url") or f"https://www.youtube.com/watch?v={e['id']}"),"title":e.get("title") or ""})
+ return pid,title,rows
 def info(url):
-    code, output = _run([
-        "--dump-single-json",
-        "--skip-download",
-        "--quiet",
-        "--no-warnings",
-        clean_url(url),
-    ])
-    if code:
-        raise RuntimeError(output[-8000:] or "yt-dlp metadata extraction failed.")
-    try:
-        return json.loads(output)
-    except json.JSONDecodeError as exc:
-        raise RuntimeError("yt-dlp returned invalid video metadata JSON.") from exc
-
-
-def download(url, temp_dir, video_id=None):
-    temp = Path(temp_dir)
-    temp.mkdir(parents=True, exist_ok=True)
-
-    video_id = video_id or _extract_video_id(url)
-    output = temp / f"source_{video_id}.%(ext)s"
-
-    code, output_log = _run([
-        "-f", "bv*+ba/b",
-        "--merge-output-format", "mp4",
-        "--no-playlist",
-        "--quiet",
-        "--no-warnings",
-        "-o", str(output),
-        clean_url(url),
-    ])
-    if code:
-        raise RuntimeError(output_log[-8000:] or "yt-dlp download failed.")
-
-    exact = temp / f"source_{video_id}.mp4"
-    if exact.is_file() and exact.stat().st_size > 0:
-        return exact
-
-    candidates = sorted(
-        temp.glob(f"source_{video_id}.*"),
-        key=lambda p: p.stat().st_mtime,
-        reverse=True,
-    )
-    for candidate in candidates:
-        if candidate.is_file() and candidate.stat().st_size > 0:
-            return candidate
-
-    raise RuntimeError("yt-dlp completed but no downloaded video file was found.")
-
-
-def _extract_video_id(url):
-    match = YOUTUBE_WATCH_RE.search(str(url or ""))
-    if match:
-        return match.group(1)
-    match = YOUTUBE_SHORT_RE.search(str(url or ""))
-    if match:
-        return match.group(1)
-    return "selected"
-
-
-def metadata_clues(data):
-    return {
-        "title": data.get("title", ""),
-        "channel": data.get("channel") or data.get("uploader") or "",
-        "duration": data.get("duration"),
-        "upload_date": data.get("upload_date"),
-        "description": data.get("description") or "",
-    }
+ return json_output(
+  ["--dump-single-json","--skip-download","--quiet","--no-warnings",clean_url(url)],
+  "Reading YouTube video metadata"
+ )
+def search(q,count=10):
+ _,o=run(["--default-search","ytsearch","--flat-playlist","--playlist-end",str(max(1,int(count))),"--dump-json","--skip-download","--quiet","--no-warnings",str(q).strip()]);rows=[]
+ for line in o.splitlines():
+  try:d=json.loads(line)
+  except:continue
+  if d.get("id"):rows.append({"id":d["id"],"url":clean_url(d.get("webpage_url") or f"https://www.youtube.com/watch?v={d['id']}"),"title":d.get("title") or "","channel":d.get("channel") or d.get("uploader") or "","duration":d.get("duration"),"view_count":d.get("view_count"),"upload_date":d.get("upload_date")})
+ return rows
+def norm(s):return re.sub(r'[^\w]+',' ',unicodedata.normalize('NFKC',str(s or '').lower()),flags=re.UNICODE).strip()
+def core(s):
+ s=re.sub(r'\s*[\[(]\s*from\b[^\])]*[\])]',' ',unicodedata.normalize('NFKC',str(s or '')),flags=re.I);return re.sub(r'\s+',' ',re.sub(r'\bfrom\b.*$','',norm(s))).strip()
+def tscore(a,b):
+ a=core(a);b=norm(b)
+ if not a or not b:return 0
+ if ''.join(a.split()) in ''.join(b.split()):return 1
+ return max(ratio(a,b),token_set_ratio(a,b),WRatio(a,b))/100
+def dscore(a,b):
+ try:return max(0,1-abs(float(a)-float(b))/max(float(a),float(b),1))
+ except:return 0
+def penalty(title):
+ t=norm(title);p=0;rs=[]
+ for pat,amt,r in [(r'\b(?:slowed|reverb|sped\s*up|nightcore)\b',.14,'alternate_speed'),(r'\b(?:remix|remastered|8d|lofi|lo-fi)\b',.12,'alternate_version'),(r'\b(?:cover|karaoke|instrumental)\b',.20,'cover_or_instrumental'),(r'\b(?:bts|behind\s+the\s+scenes|making)\b',.22,'behind_the_scenes'),(r'\b(?:teaser|trailer|promo|shorts?)\b',.24,'promo_or_short'),(r'\b(?:audio|audio\s+song)\b',.12,'audio_only'),(r'\b(?:jukebox|playlist|mix)\b',.22,'collection')]:
+  if re.search(pat,t):p+=amt;rs.append(r)
+ return min(.5,p),rs
+def rank(results,playlist_title,reference=None,cfg=None):
+ w=(cfg or {}).get('youtube_search',{});maxv=max([int(r.get('view_count') or 0) for r in results] or [0]);out=[];ref=reference or {}; ref_title=ref.get('title') or playlist_title; ref_d=ref.get('duration'); artists=ref.get('artists') or [];album=ref.get('album') or ref.get('album_title') or ''
+ for r in results:
+  title=.55*tscore(playlist_title,r['title'])+.45*tscore(ref_title,r['title']) if reference else tscore(playlist_title,r['title']);ch=norm(r.get('channel'));official=1 if any(x in ch for x in ['official','music','aditya','saregama','sony','t-series','lahari','tips','geetha','sun']) else 0;word=1 if re.search(r'\bfull\s+video\s+song\b',norm(r['title'])) else .85 if re.search(r'\bvideo\s+song\b',norm(r['title'])) else .55 if re.search(r'\bfull\s+video\b',norm(r['title'])) else 0;version=0 if penalty(r['title'])[0]>.18 else 1;views=int(r.get('view_count') or 0);view=min(1,math.log10(views+1)/math.log10(maxv+1)) if maxv else 0;dur=dscore(ref_d,r.get('duration'));artist_match=1 if artists and any(norm(a) and norm(a) in norm(r['title']) for a in artists) else 0;album_match=1 if album and norm(album) in norm(r['title']) else 0;p,rs=penalty(r['title']);score=w.get('title_weight',.38)*title+w.get('artist_weight',.20)*artist_match+w.get('album_movie_weight',.12)*album_match+w.get('official_channel_weight',.08)*official+w.get('version_weight',.08)*version+w.get('duration_weight',.06)*dur+w.get('view_weight',.08)*view+(.04 if word else 0)-p
+  out.append({'score':round(score,6),'title_match':round(title,6),'artist_match':artist_match,'album_movie_match':album_match,'official_channel_score':official,'version_score':version,'duration_score':round(dur,6),'view_score':round(view,6),'view_count':views,'video_wording_score':word,'penalty':round(p,6),'penalty_reasons':rs,'result':r})
+ out.sort(key=lambda x:x['score'],reverse=True)
+ for i,x in enumerate(out,1):x['rank']=i
+ return out
+def choose(ranked,mode):
+ if not ranked:raise RuntimeError("No YouTube search results.")
+ if mode=='automatic':return ranked[0]['result'],ranked
+ print('\nTop YouTube results:')
+ for x in ranked[:5]:
+  r=x['result'];print(f"[{x['rank']}] score={x['score']:.3f} views={r.get('view_count') or 0} | {r['title']} | {r.get('channel','')} | {r['url']}")
+ while 1:
+  s=input('Choose 1-5, or q to cancel: ').strip().lower()
+  if s=='q':raise KeyboardInterrupt
+  if s.isdigit() and 1<=int(s)<=min(5,len(ranked)):return ranked[int(s)-1]['result'],ranked
+def select_manual_lrc(metadata,title):
+ subs=metadata.get('subtitles') or {};original=(metadata.get('language') or metadata.get('original_language') or '').lower();
+ if not subs:return None
+ script=None
+ for ch in title:
+  o=ord(ch)
+  if 0x0C00<=o<=0x0C7F:script='te';break
+  if 0x0B80<=o<=0x0BFF:script='ta';break
+  if 0x0C80<=o<=0x0CFF:script='kn';break
+  if 0x0900<=o<=0x097F:script='hi';break
+ def ranklang(lang):
+  l=lang.lower();score=0
+  if original and (l==original or l.startswith(original)):score+=100
+  if script and (l==script or l.startswith(script)):score+=80
+  if l in {'en','en-us','en-gb'}:score+=50
+  return score
+ lang=max(subs,key=ranklang);prio='original_language' if ranklang(lang)>=100 else 'english' if ranklang(lang)>=50 else 'other';return {'language':lang,'priority':prio}
+def download_video_and_lrc(url,temp,title):
+ temp=Path(temp);temp.mkdir(parents=True,exist_ok=True);meta=info(url);sel=select_manual_lrc(meta,title);video_template=str(temp/'youtube_source.%(ext)s');download_args=['-f','bv*+ba/b','--merge-output-format','mp4','-o',video_template,'--no-playlist']
+ if sel: download_args += ['--write-subs','--sub-langs',sel['language'],'--sub-format','vtt','--convert-subs','lrc','-o',str(temp/'youtube_source.%(ext)s')]
+ run(download_args+[clean_url(url)]);videos=[p for p in temp.glob('youtube_source.*') if p.suffix.lower()=='.mp4'];
+ if not videos:raise RuntimeError('yt-dlp did not produce merged YouTube MP4')
+ video=max(videos,key=lambda p:p.stat().st_size);lrc=None;lmeta=None
+ if sel:
+  lrc=next(iter(sorted(temp.glob('youtube_source*.lrc'))),None)
+  if lrc:lmeta={'source':'youtube','language':sel['language'],'selection_priority':sel['priority'],'automatic':False}
+ return video,meta,lrc,lmeta

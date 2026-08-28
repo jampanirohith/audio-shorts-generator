@@ -1,0 +1,47 @@
+import re,subprocess
+from pathlib import Path
+from rapidfuzz.fuzz import ratio,token_set_ratio,WRatio
+
+def norm(s):return re.sub(r'[^\w]+',' ',str(s or '').lower(),flags=re.UNICODE).strip()
+def dur(a,b):
+ try:return max(0,1-abs(float(a)-float(b))/max(float(a),float(b),1))
+ except:return 0
+def asdict(song):
+ try:return dict(song.json)
+ except Exception:return vars(song)
+def search(query,cfg):
+ try:from spotdl import Spotdl
+ except Exception as e:raise RuntimeError('spotDL is not installed. Install requirements.txt.') from e
+ c=cfg.get('spotify',{});client=Spotdl(client_id=c.get('client_id',''),client_secret=c.get('client_secret',''),use_official_api=bool(c.get('use_official_api',False)),cache_path=c.get('cache_path','state/spotdl-cache'));return [asdict(s) for s in client.search([query])]
+def rank(results,title,artists='',album='',duration=None,cfg=None):
+ w=(cfg or {}).get('spotify_search',{});artist_text=artists if isinstance(artists,str) else ' '.join(artists or []);out=[]
+ for r in results:
+  rt=r.get('name') or r.get('title') or '';ra=r.get('artists') or [];ra=' '.join(ra) if isinstance(ra,list) else str(ra);al=r.get('album_name') or r.get('album') or '';ts=max(ratio(norm(title),norm(rt)),token_set_ratio(norm(title),norm(rt)),WRatio(norm(title),norm(rt)))/100;ars=1 if artist_text and norm(artist_text) in norm(ra) else ratio(norm(artist_text),norm(ra))/100 if artist_text else 0;als=1 if album and norm(album) in norm(al) else ratio(norm(album),norm(al))/100 if album else 0;ds=dur(duration,r.get('duration'));score=w.get('title_weight',.42)*ts+w.get('artist_weight',.28)*ars+w.get('album_weight',.18)*als+w.get('duration_weight',.12)*ds;out.append({'rank':0,'score':round(score,6),'title_score':round(ts,6),'artist_score':round(ars,6),'album_score':round(als,6),'duration_score':round(ds,6),'result':r})
+ out.sort(key=lambda x:x['score'],reverse=True)
+ for i,x in enumerate(out,1):x['rank']=i
+ return out
+def choose(ranked,mode):
+ if not ranked:raise RuntimeError('No Spotify search results.')
+ if mode=='automatic':return ranked[0]['result'],ranked
+ print('\nTop Spotify results:')
+ for x in ranked[:5]:
+  r=x['result'];print(f"[{x['rank']}] score={x['score']:.3f} | {r.get('name')} | {', '.join(r.get('artists') or [])} | {r.get('album_name') or r.get('album') or ''} | {r.get('url')}")
+ while 1:
+  s=input('Choose 1-5, or q to cancel: ').strip().lower()
+  if s=='q':raise KeyboardInterrupt
+  if s.isdigit() and 1<=int(s)<=min(5,len(ranked)):return ranked[int(s)-1]['result'],ranked
+def download(song,cfg,out):
+ out=Path(out);out.mkdir(parents=True,exist_ok=True);url=song.get('url');
+ if not url:raise RuntimeError('Selected Spotify result has no URL')
+ cmd=['spotdl','download',url,'--format',cfg.get('spotify_output_format','mp3'),'--output',str(out/'spotify_source.{output-ext}'),'--lyrics','synced']
+ c=cfg.get('spotify',{});
+ if c.get('client_id'):cmd+=['--client-id',c['client_id']]
+ if c.get('client_secret'):cmd+=['--client-secret',c['client_secret']]
+ try:p=subprocess.run(cmd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,encoding='utf-8',errors='replace')
+ except FileNotFoundError as e:raise RuntimeError('spotdl command was not found on PATH.') from e
+ if p.returncode:raise RuntimeError(p.stdout[-10000:] or 'spotDL download failed')
+ aud=[p for p in out.iterdir() if p.suffix.lower() in {'.mp3','.m4a','.flac','.opus','.ogg'}]
+ if not aud:raise RuntimeError('spotDL completed but no audio file was found')
+ audio=max(aud,key=lambda p:p.stat().st_mtime);art=next((p for p in out.iterdir() if p.suffix.lower() in {'.jpg','.jpeg','.png','.webp'}),None);return audio,art
+def song_key(song):
+ a=song.get('artists') or [];a=' '.join(a) if isinstance(a,list) else str(a);return '|'.join([norm(song.get('name') or song.get('title')),norm(a),norm(song.get('album_name') or song.get('album'))])

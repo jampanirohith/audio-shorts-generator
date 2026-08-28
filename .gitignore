@@ -1,13 +1,12 @@
-venv/
+config.local.json
+.env
+state/
+temp/
+songs/
+reels/
 __pycache__/
 *.pyc
-temp/*
-reels/finished/*
-state/*
-cookies.txt
-.env
 
-*.rendering.mp4
-*.writing.json
+venv/
 
-.cache
+config.json

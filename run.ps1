@@ -1,7 +1,3 @@
 $ErrorActionPreference = "Stop"
-
-if (Test-Path ".\venv\Scripts\Activate.ps1") {
-    . .\venv\Scripts\Activate.ps1
-}
-
+if (Test-Path ".\.venv\Scripts\Activate.ps1") { . .\.venv\Scripts\Activate.ps1 }
 python .\main.py
