@@ -10,5 +10,5 @@ def make_canonical(audio,artwork,lrc,songs_dir,serial):
   try:a.add_tags()
   except:pass
   mime='image/png' if Path(artwork).suffix.lower()=='.png' else 'image/jpeg';a.tags.delall('APIC');a.tags.add(APIC(encoding=3,mime=mime,type=3,desc='Cover',data=Path(artwork).read_bytes()));a.save()
- if lrc and out.suffix=='.mp3':embed_lrc_mp3(out,Path(lrc).read_text(encoding='utf-8-sig',errors='replace'))
+ if lrc and out.suffix=='.mp3':embed_lrc_mp3(out,lrc)
  return out

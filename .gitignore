@@ -1,12 +1,15 @@
-config.local.json
 .env
-state/
+cookies.txt
+__pycache__/
+*.pyc
+state/*.db
+state/*.db-*
 temp/
 songs/
 reels/
-__pycache__/
-*.pyc
+spotdl-cache/
+
+state/spotify_oauth.json
+.env
 
 venv/
-
-config.json

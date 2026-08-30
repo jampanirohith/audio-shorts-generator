@@ -1,117 +1,145 @@
-import json,shutil,subprocess
+import json, shutil, subprocess, tempfile
 from pathlib import Path
 
-def req(n):
- if shutil.which(n) is None: raise RuntimeError(f'{n} was not found on PATH.')
-def probe(p):
- req('ffprobe');q=subprocess.run(['ffprobe','-v','error','-print_format','json','-show_format','-show_streams',str(p)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,encoding='utf-8',errors='replace')
- if q.returncode: raise RuntimeError(q.stdout[-6000:] or 'ffprobe failed')
- return json.loads(q.stdout)
-def nvenc():
- try:return 'h264_nvenc' in subprocess.run(['ffmpeg','-hide_banner','-encoders'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,encoding='utf-8',errors='replace').stdout
- except:return False
 
-def _ffmpeg_path(path):
- return str(Path(path).resolve()).replace('\\','/').replace(':','\\:').replace("'","\\'")
+def req(name):
+    if shutil.which(name) is None: raise RuntimeError(f'{name} was not found on PATH.')
 
-def _default_font_path():
- candidates=[Path('C:/Windows/Fonts/Nirmala.ttf'),Path('C:/Windows/Fonts/NirmalaUI.ttf'),Path('C:/Windows/Fonts/arial.ttf'),Path('C:/Windows/Fonts/segoeui.ttf')]
- for p in candidates:
-  if p.is_file(): return str(p)
- return None
 
-def _escape_filter_value(text):
- return str(text).replace('\\','\\\\').replace(':','\\:').replace("'","\\'").replace('%','\\%').replace('[','\\[').replace(']','\\]')
+def probe(path):
+    req('ffprobe'); p=subprocess.run(['ffprobe','-v','error','-print_format','json','-show_format','-show_streams',str(path)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,encoding='utf-8',errors='replace')
+    if p.returncode: raise RuntimeError(p.stdout[-8000:] or 'ffprobe failed')
+    return json.loads(p.stdout)
 
-def _subtitle_filter(lines,hook_start,hook_end,width,height,font_path=None,font_size=52,temp_dir=None,cfg=None):
- """Render lyrics on the actual foreground video, not on the surrounding black canvas.
 
-    Each lyric is a two-line-capable drawtext event. textfile= avoids punctuation escaping.
-    All typography and placement is controlled by config.json.
-    """
- cfg=cfg or {}
- font_path=font_path or _default_font_path()
- if not font_path or not Path(font_path).is_file():
-  raise RuntimeError('No usable lyric font file found. Set lyrics_fontfile in config.json.')
- import tempfile
- root=Path(temp_dir) if temp_dir else Path(tempfile.mkdtemp(prefix='audio_shorts_lrc_'))
- root.mkdir(parents=True,exist_ok=True);created=[];parts=[]
- font_size=int(cfg.get('lyrics_font_size',font_size));font_color=str(cfg.get('lyrics_font_color','white'));border_color=str(cfg.get('lyrics_border_color','black'))
- border_w=int(cfg.get('lyrics_border_width',3));bold=bool(cfg.get('lyrics_bold',False));opacity=float(cfg.get('lyrics_opacity',1.0))
- # The lyric y position is relative to the foreground video. Default is lower-middle,
- # safely inside the video rather than in the black area around it.
- x_expr=str(cfg.get('lyrics_x','(w-text_w)/2'))
- y_expr=str(cfg.get('lyrics_y','h*0.68-text_h/2'))
- align=str(cfg.get('lyrics_alignment','center'))
- line_spacing=int(cfg.get('lyrics_line_spacing',4));max_chars=int(cfg.get('lyrics_max_chars_per_line',0))
- try:
-  for i,line in enumerate(lines):
-   t=float(line['time']); next_t=float(lines[i+1]['time']) if i+1<len(lines) else hook_end
-   a=max(hook_start,t); b=min(hook_end,max(t+0.08,next_t))
-   if b<=hook_start or a>=hook_end: continue
-   text=str(line['text']).replace('\x00','').strip()
-   if max_chars>0 and len(text)>max_chars:
-    # Always preserve the complete lyric.  Split into at most two visual
-    # lines; never truncate at two lines.  Prefer a balanced word boundary,
-    # and fall back to a character split for scripts without spaces.
-    words=text.split()
-    if len(words) >= 2:
-     best_i=1; best_score=None
-     for cut in range(1,len(words)):
-      left=' '.join(words[:cut]); right=' '.join(words[cut:])
-      score=abs(len(left)-len(right)) + (max(0,len(left)-max_chars)*2) + (max(0,len(right)-max_chars)*2)
-      if best_score is None or score<best_score:
-       best_score=score; best_i=cut
-     text=' '.join(words[:best_i])+'\n'+' '.join(words[best_i:])
-    else:
-     mid=max(1,len(text)//2)
-     text=text[:mid]+'\n'+text[mid:]
-   text_file=root/f'.lyric_{i:04d}.txt';text_file.write_text(text,encoding='utf-8-sig');created.append(text_file)
-   # drawtext has no separate bold switch. Bold is achieved by selecting the configured bold font file.
-   # This is deliberately config-driven via lyrics_fontfile rather than relying on fontconfig.
-   fontcolor=f"{font_color}@{max(0,min(1,opacity)):.3f}"
-   parts.append('drawtext='+':'.join([
-    f"fontfile='{_ffmpeg_path(font_path)}'",f"textfile='{_ffmpeg_path(text_file)}'",f"fontcolor={_escape_filter_value(fontcolor)}",
-    f"bordercolor={_escape_filter_value(border_color)}",f"borderw={border_w}",f"fontsize={font_size}",f"line_spacing={line_spacing}",
-    f"x={x_expr}",f"y={y_expr}",f"enable='between(t,{a-hook_start:.3f},{b-hook_start:.3f})'"
-   ]))
-  return ','.join(parts),created,root
- except Exception:
-  for f in created:f.unlink(missing_ok=True)
-  if temp_dir is None and root.exists():
-   try:root.rmdir()
-   except OSError:pass
-  raise
+def nvenc_available():
+    try:return 'h264_nvenc' in subprocess.run(['ffmpeg','-hide_banner','-encoders'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,encoding='utf-8',errors='replace').stdout
+    except Exception:return False
 
-def render(video,start,end,out,cfg,lyrics=None):
- req('ffmpeg');out=Path(out);out.parent.mkdir(parents=True,exist_ok=True);tmp=out.with_suffix('.rendering.mp4');w=int(cfg['video_width']);h=int(cfg['video_height']);cw=float(cfg.get('source_crop_width',.7));ch=float(cfg.get('source_crop_height',.55));f=''
- if cfg.get('cinematic_enabled',True):f=f"eq=brightness={cfg.get('cinematic_brightness',0)}:contrast={cfg.get('cinematic_contrast',1.1)}:saturation={cfg.get('cinematic_saturation',1.03)}:gamma={cfg.get('cinematic_gamma',1.02)},unsharp=5:5:{cfg.get('cinematic_sharpen',.3)}:5:5:0,vignette=PI/{cfg.get('cinematic_vignette_divisor',7)}:eval=frame,"
- # Keep lyrics on the foreground video itself. The crop is first created and processed;
- # lyrics are drawn onto [fg] before it is overlaid onto the black canvas.
- fg_filter=f"[0:v]crop=iw*{cw}:ih*{ch}:(iw-ow)/2:(ih-oh)/2,scale={w}:-1:flags=lanczos,setsar=1,{f}format=yuv420p[fg]"
- lyric_lines=[];lyric_temp_files=[];lyric_temp_root=None
- if lyrics:
-  from modules.lyrics import parse_lrc
-  lyric_lines=parse_lrc(lyrics) if isinstance(lyrics,(str,Path)) else lyrics
-  lyric_filter,lyric_temp_files,lyric_temp_root=_subtitle_filter(lyric_lines,float(start),float(end),w,h,cfg.get('lyrics_fontfile'),cfg.get('lyrics_font_size',52),temp_dir=out.parent/f'.{out.stem}_lyrics_tmp',cfg=cfg)
-  # Foreground dimensions are w x variable h. drawtext expressions therefore refer to the
-  # actual video area, guaranteeing that lyrics cannot fall into the outer black region.
-  fg_filter += f";[fg]{lyric_filter}[fg_lyrics]"
-  fg_label='fg_lyrics'
- else: fg_label='fg'
- filt=fg_filter+f";color=c=black:s={w}x{h}:r={cfg.get('video_fps',30)}[bg];[bg][{fg_label}]overlay=(W-w)/2:(H-h)/2:shortest=1[base]"
- # No lyric overlay is added after compositing; this guarantees all lyric pixels are inside the video.
- filt += ';[base]copy[v]'
- gpu=cfg.get('video_encoder','auto').lower() in {'auto','gpu','nvenc'} and nvenc();enc=['-c:v','h264_nvenc','-preset',cfg.get('nvenc_preset','p5'),'-cq',str(cfg.get('nvenc_cq',20)),'-b:v','0'] if gpu else ['-c:v','libx264','-preset',cfg.get('cpu_preset','medium'),'-crf',str(cfg.get('video_crf',18))]
- cmd=['ffmpeg','-y','-hide_banner','-loglevel','error','-ss',f'{float(start):.3f}','-i',str(video),'-t',f'{float(end-start):.3f}','-filter_complex',filt,'-map','[v]','-map','0:a?','-r',str(cfg.get('video_fps',30)),*enc,'-pix_fmt','yuv420p','-c:a','aac','-b:a',cfg.get('audio_bitrate','192k'),'-movflags','+faststart',str(tmp)]
- try:
-  q=subprocess.run(cmd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,encoding='utf-8',errors='replace')
-  if q.returncode:
-   tmp.unlink(missing_ok=True);raise RuntimeError(q.stdout[-8000:] or 'FFmpeg render failed')
-  tmp.replace(out)
-  return {'command':cmd,'encoder':'h264_nvenc' if gpu else 'libx264','canvas':{'width':w,'height':h,'fps':cfg.get('video_fps',30),'aspect_ratio':f'{w}:{h}'},'crop':{'width_fraction':cw,'height_fraction':ch},'lyrics_rendered':bool(lyric_lines),'lyrics_line_count':len(lyric_lines),'lyrics_position':'foreground_lower_middle','lyrics_config':{k:cfg.get(k) for k in ['lyrics_fontfile','lyrics_font_size','lyrics_bold','lyrics_font_color','lyrics_border_color','lyrics_border_width','lyrics_opacity','lyrics_x','lyrics_y','lyrics_alignment','lyrics_line_spacing','lyrics_max_chars_per_line']},'probe':probe(out)}
- finally:
-  for fpath in lyric_temp_files:Path(fpath).unlink(missing_ok=True)
-  if lyric_temp_root and Path(lyric_temp_root).exists():
-   try:Path(lyric_temp_root).rmdir()
-   except OSError:pass
+
+def _ffpath(p):
+    return str(Path(p).resolve()).replace('\\','/').replace(':','\\:').replace("'","\\'")
+
+
+def _font(cfg):
+    p=Path(cfg.get('lyrics_fontfile','fonts/NotoSerifTelugu.ttf'))
+    if not p.is_file(): raise RuntimeError(f"Configured lyric font was not found: {p.resolve()}")
+    return p
+
+
+def _escape(v):
+    return str(v).replace('\\','\\\\').replace(':','\\:').replace("'","\\'").replace('%','\\%').replace('[','\\[').replace(']','\\]')
+
+
+def _wrap(text,max_chars):
+    max_chars=int(max_chars)
+    raw_lines=str(text).replace('\x00','').replace('\r','').split('\n')
+    wrapped=[]
+    for raw in raw_lines:
+        line=' '.join(raw.split())
+        if not line: continue
+        if max_chars<=0 or len(line)<=max_chars:
+            wrapped.append(line); continue
+        words=line.split()
+        if len(words)==1:
+            mid=max(1,len(line)//2); wrapped.extend([line[:mid],line[mid:]])
+            continue
+        current=[]; current_len=0
+        for word in words:
+            proposed=len(word) if not current else current_len+1+len(word)
+            if current and proposed>max_chars:
+                wrapped.append(' '.join(current)); current=[word]; current_len=len(word)
+            else:
+                current.append(word); current_len=proposed
+        if current: wrapped.append(' '.join(current))
+    return '\n'.join(wrapped)
+
+def _lyric_filters(lines,duration,cfg,tmpdir):
+    if not lines:return None,0
+    font=_font(cfg); max_chars=int(cfg.get('lyrics_max_chars_per_line',34)); size=int(cfg.get('lyrics_font_size',52)); border=int(cfg.get('lyrics_border_width',3)); opacity=max(0,min(1,float(cfg.get('lyrics_opacity',1))))
+    merge_tol=max(0.0,float(cfg.get('lyrics_merge_timestamp_tolerance_seconds',0.15)))
+    max_display=max(0.5,float(cfg.get('lyrics_max_display_seconds',6.0)))
+
+    # Group LRC entries that start at essentially the same time. This is common
+    # with two vocal lines encoded at one timestamp. Rendering them as separate
+    # drawtext filters would place both strings on top of each other. A group is
+    # rendered as one multiline text block instead.
+    groups=[]
+    for raw in lines:
+        start=float(raw['time']); text=' '.join(str(raw.get('text','')).replace('\x00','').split())
+        if not text or start>=duration: continue
+        if groups and abs(start-groups[-1]['time']) <= merge_tol:
+            groups[-1]['texts'].append(text)
+        else:
+            groups.append({'time':start,'texts':[text]})
+
+    filters=[]; count=0
+    for i,g in enumerate(groups):
+        start=max(0,min(duration,g['time']))
+        next_start=groups[i+1]['time'] if i+1<len(groups) else duration
+        # Do not leave an old lyric displayed for an excessively long silent gap.
+        # It remains visible long enough to be readable, then disappears until
+        # the next timestamp.
+        end=min(duration,next_start,start+max_display)
+        if end <= start: continue
+        text=_wrap('\n'.join(g['texts']),max_chars)
+        f=tmpdir/f'lyric_{i:04d}.txt';f.write_text(text,encoding='utf-8-sig')
+
+        # drawtext's line_spacing is measured in pixels added between lines.
+        # Noto/TrueType font metrics already contain a substantial line box, so
+        # a small positive value can still look very loose. Allow negative
+        # spacing and make the configured value explicit in the generated
+        # filter. This makes the config control the *actual* extra spacing.
+        line_spacing=int(cfg.get('lyrics_line_spacing',-12))
+
+        # Fade each lyric block in/out. If a lyric interval is shorter than the
+        # requested combined fade duration, split the interval so the two fades
+        # never overlap. A zero duration disables that side's fade.
+        interval=max(0.0,end-start)
+        requested_fade_in=max(0.0,float(cfg.get('lyrics_fade_in_seconds',0.20)))
+        requested_fade_out=max(0.0,float(cfg.get('lyrics_fade_out_seconds',0.20)))
+        fade_in=min(requested_fade_in,interval/2.0)
+        fade_out=min(requested_fade_out,interval/2.0)
+
+        alpha_expr='1'
+        if fade_in>0 or fade_out>0:
+            if fade_in>0 and fade_out>0:
+                alpha_expr=(
+                    f"if(lt(t\\,{start+fade_in:.3f})\\,(t-{start:.3f})/{fade_in:.3f}\\,"
+                    f"if(gt(t\\,{end-fade_out:.3f})\\,({end:.3f}-t)/{fade_out:.3f}\\,1))"
+                )
+            elif fade_in>0:
+                alpha_expr=f"if(lt(t\\,{start+fade_in:.3f})\\,(t-{start:.3f})/{fade_in:.3f}\\,1)"
+            else:
+                alpha_expr=f"if(gt(t\\,{end-fade_out:.3f})\\,({end:.3f}-t)/{fade_out:.3f}\\,1)"
+
+        filters.append("drawtext="+":".join([
+            f"fontfile='{_ffpath(font)}'",f"textfile='{_ffpath(f)}'",
+            f"fontcolor={_escape(str(cfg.get('lyrics_font_color','white')))}@{opacity:.3f}",
+            f"bordercolor={_escape(str(cfg.get('lyrics_border_color','black')))}",f"borderw={border}",f"fontsize={size}",
+            f"line_spacing={line_spacing}","text_align=center",
+            "x=(w-text_w)/2","y=(h-text_h)/2",f"alpha='{alpha_expr}'",
+            f"enable='between(t,{start:.3f},{end:.3f})'"
+        ]));count+=1
+    return ','.join(filters),count
+
+def render(video, youtube_start, duration, spotify_audio, spotify_start, out, cfg, lyrics=None):
+    req('ffmpeg');out=Path(out);out.parent.mkdir(parents=True,exist_ok=True);tmp=out.with_suffix('.rendering.mp4')
+    w=int(cfg.get('video_width',1920));h=int(cfg.get('video_height',1080));fps=int(cfg.get('video_fps',30))
+    lyric_tmp=Path(tempfile.mkdtemp(prefix=f'.{out.stem}_lyrics_',dir=str(out.parent)))
+    try:
+        base='crop=min(iw\\,ih*16/9):min(ih\\,iw*9/16):(iw-ow)/2:(ih-oh)/2,scale=%d:%d:flags=lanczos,setsar=1'%(w,h)
+        if cfg.get('cinematic_enabled',True):
+            base+=',eq=brightness=%s:contrast=%s:saturation=%s:gamma=%s'%(cfg.get('cinematic_brightness',0),cfg.get('cinematic_contrast',1.1),cfg.get('cinematic_saturation',1.03),cfg.get('cinematic_gamma',1.02))
+            sharp=float(cfg.get('cinematic_sharpen',.3));base+=f',unsharp=5:5:{sharp}:5:5:0'
+            base+=f',vignette=PI/{cfg.get("cinematic_vignette_divisor",7)}:eval=frame'
+        lf,count=_lyric_filters(lyrics,float(duration),cfg,lyric_tmp) if lyrics else (None,0)
+        if lf:base+=','+lf
+        enc=['-c:v','h264_nvenc','-preset',cfg.get('nvenc_preset','p5'),'-cq',str(cfg.get('nvenc_cq',20)),'-b:v','0'] if cfg.get('video_encoder','auto').lower() in {'auto','gpu','nvenc'} and nvenc_available() else ['-c:v','libx264','-preset',cfg.get('cpu_preset','medium'),'-crf',str(cfg.get('video_crf',18))]
+        cmd=['ffmpeg','-y','-hide_banner','-loglevel','error','-ss',f'{float(youtube_start):.3f}','-i',str(video),'-ss',f'{float(spotify_start):.3f}','-i',str(spotify_audio),'-t',f'{float(duration):.3f}','-filter:v',base,'-map','0:v:0','-map','1:a:0','-r',str(fps),*enc,'-pix_fmt','yuv420p','-c:a','aac','-b:a',cfg.get('audio_bitrate','192k'),'-shortest','-movflags','+faststart',str(tmp)]
+        p=subprocess.run(cmd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,encoding='utf-8',errors='replace')
+        if p.returncode:raise RuntimeError(p.stdout[-12000:] or 'FFmpeg render failed')
+        tmp.replace(out)
+        return {'encoder':'h264_nvenc' if any(x=='h264_nvenc' for x in enc) else 'libx264','canvas':{'width':w,'height':h,'fps':fps,'aspect_ratio':'16:9'},'youtube_start':round(float(youtube_start),3),'spotify_start':round(float(spotify_start),3),'duration':round(float(duration),3),'lyrics_rendered':bool(lyrics),'lyrics_line_count':count,'lyrics_position':'center','audio_source':'spotify','video_source':'youtube','command':cmd,'probe':probe(out)}
+    finally:
+        shutil.rmtree(lyric_tmp,ignore_errors=True)
