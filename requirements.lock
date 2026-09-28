@@ -1,0 +1,4 @@
+# The lock is intentionally platform-neutral. CUDA wheels are environment-specific.
+# Generate an environment-specific fully pinned lock with:
+#   python -m pip freeze > requirements.lock.local.txt
+# after installing requirements.txt and the correct CUDA/PyTorch build.

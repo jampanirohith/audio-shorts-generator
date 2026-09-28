@@ -1,0 +1,942 @@
+{
+  "schema_version": 2,
+  "description": "Authoritative manual Reel timelines. --fillhookjson scans songs/final and preserves existing hook times; fill blank hook.start and hook.end values before processing.",
+  "songs": [
+    {
+      "song_path": "songs/final/001_Gelupu Thalupule_Mani Sharma, Sreerama Chandra.mp3",
+      "lrc_path": "songs/final/001_Gelupu Thalupule_Mani Sharma, Sreerama Chandra.lrc",
+      "hook": {
+        "start": "02:12.92",
+        "end": "03:11.72"
+      }
+    },
+    {
+      "song_path": "songs/final/002_Chiru Chiru_Yuvan Shankar Raja, Haricharan, Sagar Desai, Chandra Bose.mp3",
+      "lrc_path": "songs/final/002_Chiru Chiru_Yuvan Shankar Raja, Haricharan, Sagar Desai, Chandra Bose.lrc",
+      "hook": {
+        "start": "00:33.47",
+        "end": "00:52.70"
+      }
+    },
+    {
+      "song_path": "songs/final/004_Neeve_G. V. Prakash, Anantha Sriram.mp3",
+      "lrc_path": "songs/final/004_Neeve_G. V. Prakash, Anantha Sriram.lrc",
+      "hook": {
+        "start": "00:23.97",
+        "end": "00:36.31"
+      }
+    },
+    {
+      "song_path": "songs/final/005_Hello Rammante_Vijay Prakash, Devan Ekambaram, D.Burn.mp3",
+      "lrc_path": "songs/final/005_Hello Rammante_Vijay Prakash, Devan Ekambaram, D.Burn.lrc",
+      "hook": {
+        "start": "00:17.79",
+        "end": "00:32.34"
+      }
+    },
+    {
+      "song_path": "songs/final/006_Mella Mellagaa_Sid Sriram, Aditi Bhavaraju, Krishna Kanth.mp3",
+      "lrc_path": "songs/final/006_Mella Mellagaa_Sid Sriram, Aditi Bhavaraju, Krishna Kanth.lrc",
+      "hook": {
+        "start": "00:11.94",
+        "end": "00:21.28"
+      }
+    },
+    {
+      "song_path": "songs/final/008_Neeve_Yazin Nizar, Phani Kalyan.mp3",
+      "lrc_path": "songs/final/008_Neeve_Yazin Nizar, Phani Kalyan.lrc",
+      "hook": {
+        "start": "00:06.92",
+        "end": "00:25.58"
+      }
+    },
+    {
+      "song_path": "songs/final/010_Nee Yadalo Naaku_Yuvan Shankar Raja, Sagar Desai, Vennelakanti.mp3",
+      "lrc_path": "songs/final/010_Nee Yadalo Naaku_Yuvan Shankar Raja, Sagar Desai, Vennelakanti.lrc",
+      "hook": {
+        "start": "00:19.57",
+        "end": "00:33.57"
+      }
+    },
+    {
+      "song_path": "songs/final/011_Yemantave_Achu, Karthik.mp3",
+      "lrc_path": "songs/final/011_Yemantave_Achu, Karthik.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/012_Inthalo Ennenni Vinthalo Male_Shekar Chandra, Naresh Iyer.mp3",
+      "lrc_path": "songs/final/012_Inthalo Ennenni Vinthalo Male_Shekar Chandra, Naresh Iyer.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/015_Yemito_Haricharan.mp3",
+      "lrc_path": "songs/final/015_Yemito_Haricharan.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/017_Poolane Kunukeyamantaa_A.R. Rahman, Haricharan, Shreya Ghoshal, Anantha Sriram.mp3",
+      "lrc_path": "songs/final/017_Poolane Kunukeyamantaa_A.R. Rahman, Haricharan, Shreya Ghoshal, Anantha Sriram.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/018_Mutyala Dhaarani_Harris Jayaraj, Karthik, Megha, Bhuvana Chandra.mp3",
+      "lrc_path": "songs/final/018_Mutyala Dhaarani_Harris Jayaraj, Karthik, Megha, Bhuvana Chandra.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/023_Po Pove Yekantham_Anirudh Ravichander, Dhanunjay Seepana.mp3",
+      "lrc_path": "songs/final/023_Po Pove Yekantham_Anirudh Ravichander, Dhanunjay Seepana.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/025_Naaloney Pongaynu_Harris Jayaraj, VV Prassanna, Harish Raghavendra, Devan Ekambaram, Veturi.mp3",
+      "lrc_path": "songs/final/025_Naaloney Pongaynu_Harris Jayaraj, VV Prassanna, Harish Raghavendra, Devan Ekambaram, Veturi.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/028_Emannavoo_Anirudh Ravichander, Shweta Mohan, Vennelakanti.mp3",
+      "lrc_path": "songs/final/028_Emannavoo_Anirudh Ravichander, Shweta Mohan, Vennelakanti.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/033_Arerey Manasa (From _Falaknuma Das_)_Vivek Sagar, Sid Sriram, Kittu Vissapragada.mp3",
+      "lrc_path": "songs/final/033_Arerey Manasa (From _Falaknuma Das_)_Vivek Sagar, Sid Sriram, Kittu Vissapragada.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/034_Gaali Vaaluga_Anirudh Ravichander.mp3",
+      "lrc_path": "songs/final/034_Gaali Vaaluga_Anirudh Ravichander.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/035_Andamaina Lokam_Devi Sri Prasad, Sagar, Haripriya.mp3",
+      "lrc_path": "songs/final/035_Andamaina Lokam_Devi Sri Prasad, Sagar, Haripriya.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/036_Guruvaram_B. Ajaneesh Loknath, Vijay Prakash.mp3",
+      "lrc_path": "songs/final/036_Guruvaram_B. Ajaneesh Loknath, Vijay Prakash.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/038_Chudandi Saaru_Anirudh Ravichander, Hemachandra Vedala.mp3",
+      "lrc_path": "songs/final/038_Chudandi Saaru_Anirudh Ravichander, Hemachandra Vedala.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/040_Vellipoke_Ranjith Govind.mp3",
+      "lrc_path": "songs/final/040_Vellipoke_Ranjith Govind.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/042_Ela Ela Naalo_Yuvan Shankar Raja, Haricharan, Shweta Pandit.mp3",
+      "lrc_path": "songs/final/042_Ela Ela Naalo_Yuvan Shankar Raja, Haricharan, Shweta Pandit.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/044_Ninnila_Thaman S, Armaan Malik.mp3",
+      "lrc_path": "songs/final/044_Ninnila_Thaman S, Armaan Malik.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/046_Samayama_Prashanth R Vihari, Harini, Yazin Nizar.mp3",
+      "lrc_path": "songs/final/046_Samayama_Prashanth R Vihari, Harini, Yazin Nizar.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/047_Toliprema_Thaman S, Kala Bhairava.mp3",
+      "lrc_path": "songs/final/047_Toliprema_Thaman S, Kala Bhairava.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/051_Nee Choopule_G. V. Prakash, Haricharan, K. S. Chithra.mp3",
+      "lrc_path": "songs/final/051_Nee Choopule_G. V. Prakash, Haricharan, K. S. Chithra.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/052_Trendu Maarina Friendu Maaradu (Friendship Anthem)_Devi Sri Prasad.mp3",
+      "lrc_path": "songs/final/052_Trendu Maarina Friendu Maaradu (Friendship Anthem)_Devi Sri Prasad.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/059_Nee Paata Madhuram - The Touch of Love_Anirudh Ravichander, Roop Kumar Rathod, Shreya Ghoshal, Bhuvana Chandra.mp3",
+      "lrc_path": "songs/final/059_Nee Paata Madhuram - The Touch of Love_Anirudh Ravichander, Roop Kumar Rathod, Shreya Ghoshal, Bhuvana Chandra.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/060_Saripovu_Shekar Chandra, Haricharan.mp3",
+      "lrc_path": "songs/final/060_Saripovu_Shekar Chandra, Haricharan.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/063_Yenno Yenno_Gopi Sundar, Karthik, Chinmayi.mp3",
+      "lrc_path": "songs/final/063_Yenno Yenno_Gopi Sundar, Karthik, Chinmayi.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/066_Nuvvante Pranamani_M. M. Keeravaani, Vijay Yesudas.mp3",
+      "lrc_path": "songs/final/066_Nuvvante Pranamani_M. M. Keeravaani, Vijay Yesudas.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/067_Chinnadana Neekosam_Anup Rubens, Raja Hasan.mp3",
+      "lrc_path": "songs/final/067_Chinnadana Neekosam_Anup Rubens, Raja Hasan.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/068_Kannuladha - The Kiss of Love_Anirudh Ravichander, Dhanush, Shruti Haasan, Bhuvana Chandra.mp3",
+      "lrc_path": "songs/final/068_Kannuladha - The Kiss of Love_Anirudh Ravichander, Dhanush, Shruti Haasan, Bhuvana Chandra.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/069_Amma Amma_Anirudh Ravichander, S. Janaki, Deepu.mp3",
+      "lrc_path": "songs/final/069_Amma Amma_Anirudh Ravichander, S. Janaki, Deepu.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/071_Pilla O Pilla_Karthik.mp3",
+      "lrc_path": "songs/final/071_Pilla O Pilla_Karthik.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/075_Beautiful Love_Armaan Malik, Chaitra Ambadipudi.mp3",
+      "lrc_path": "songs/final/075_Beautiful Love_Armaan Malik, Chaitra Ambadipudi.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/076_Ninnu Chuse Anandamlo (From _Gang Leader_)_Anirudh Ravichander, Sid Sriram, Anantha Sriram.mp3",
+      "lrc_path": "songs/final/076_Ninnu Chuse Anandamlo (From _Gang Leader_)_Anirudh Ravichander, Sid Sriram, Anantha Sriram.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/077_Manohari_Divya Kumar, Manoj Muntashir, Neeti Mohan.mp3",
+      "lrc_path": "songs/final/077_Manohari_Divya Kumar, Manoj Muntashir, Neeti Mohan.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/083_Ee Hridayam_A.R. Rahman, Vijay Prakash, Suzanne D'Mello, Blaaze, Anantha Sriram.mp3",
+      "lrc_path": "songs/final/083_Ee Hridayam_A.R. Rahman, Vijay Prakash, Suzanne D'Mello, Blaaze, Anantha Sriram.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/086_Baitikochi Chuste_Anirudh Ravichander.mp3",
+      "lrc_path": "songs/final/086_Baitikochi Chuste_Anirudh Ravichander.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/087_Edo Jarugutondi_Shakthikanth Karthick, Aravind Srinivas, Renuka.mp3",
+      "lrc_path": "songs/final/087_Edo Jarugutondi_Shakthikanth Karthick, Aravind Srinivas, Renuka.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/088_Uppenantha_Devi Sri Prasad, KK, Balaji.mp3",
+      "lrc_path": "songs/final/088_Uppenantha_Devi Sri Prasad, KK, Balaji.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/093_Marhaba_Gopi Sundar, K. S. Chithra, Aaishwarya.mp3",
+      "lrc_path": "songs/final/093_Marhaba_Gopi Sundar, K. S. Chithra, Aaishwarya.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/094_Bullet_Mangli.mp3",
+      "lrc_path": "songs/final/094_Bullet_Mangli.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/095_Koppamga Koppamga - From _Mr. Majnu_Thaman S, Armaan Malik, Sreemani.mp3",
+      "lrc_path": "songs/final/095_Koppamga Koppamga - From _Mr. Majnu_Thaman S, Armaan Malik, Sreemani.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/100_Manasaa_A.R. Rahman, Chinmayi, Devan Ekambaram, Anantha Sriram.mp3",
+      "lrc_path": "songs/final/100_Manasaa_A.R. Rahman, Chinmayi, Devan Ekambaram, Anantha Sriram.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/102_Meghaalu Lekunna_Devi Sri Prasad, Yazin Nizar.mp3",
+      "lrc_path": "songs/final/102_Meghaalu Lekunna_Devi Sri Prasad, Yazin Nizar.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/105_Oosupodu_Shakthikanth Karthick, Hemachandra Vedala.mp3",
+      "lrc_path": "songs/final/105_Oosupodu_Shakthikanth Karthick, Hemachandra Vedala.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/106_Nee Korinaal_Karthik, Shweta Mohan, Madhan Karky.mp3",
+      "lrc_path": "songs/final/106_Nee Korinaal_Karthik, Shweta Mohan, Madhan Karky.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/107_Rooba Rooba_Harris Jayaraj, Shahil Hada, Chinmayi.mp3",
+      "lrc_path": "songs/final/107_Rooba Rooba_Harris Jayaraj, Shahil Hada, Chinmayi.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/108_Manishi Musugulo Mrugham Neney Ra (From _Dhruva_)_Hiphop Tamizha, Kaushik Krish, Yadagiri.mp3",
+      "lrc_path": "songs/final/108_Manishi Musugulo Mrugham Neney Ra (From _Dhruva_)_Hiphop Tamizha, Kaushik Krish, Yadagiri.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/114_Vinnane Vinnane_Thaman S, Armaan Malik, Devan Ekambaram.mp3",
+      "lrc_path": "songs/final/114_Vinnane Vinnane_Thaman S, Armaan Malik, Devan Ekambaram.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/115_Gunde Aagi Pothaande_Devi Sri Prasad, Hemachandra Vedala, M.M.Manasi.mp3",
+      "lrc_path": "songs/final/115_Gunde Aagi Pothaande_Devi Sri Prasad, Hemachandra Vedala, M.M.Manasi.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/120_Hoyna Hoyna (From _Gang Leader_)_Anirudh Ravichander, Inno Genga, Anantha Sriram.mp3",
+      "lrc_path": "songs/final/120_Hoyna Hoyna (From _Gang Leader_)_Anirudh Ravichander, Inno Genga, Anantha Sriram.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/122_Neelakashamlo_Anup Rubens, Shreya Ghoshal.mp3",
+      "lrc_path": "songs/final/122_Neelakashamlo_Anup Rubens, Shreya Ghoshal.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/124_Chinnadhana_Anup Rubens, Raja Hasan, Sravani.mp3",
+      "lrc_path": "songs/final/124_Chinnadhana_Anup Rubens, Raja Hasan, Sravani.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/126_Yedhalo Oka Mounam - The Innocence of Love_Anirudh Ravichander, Ajesh.mp3",
+      "lrc_path": "songs/final/126_Yedhalo Oka Mounam - The Innocence of Love_Anirudh Ravichander, Ajesh.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/127_Pareshanura_Hiphop Tamizha, Padmalatha, Vishnupriya Ravi.mp3",
+      "lrc_path": "songs/final/127_Pareshanura_Hiphop Tamizha, Padmalatha, Vishnupriya Ravi.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/129_Lachhamma_Anup Rubens, Nithin, Thagubothu Ramesh, Murali.mp3",
+      "lrc_path": "songs/final/129_Lachhamma_Anup Rubens, Nithin, Thagubothu Ramesh, Murali.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/130_Nannaku_Sagar, Devi Sri Prasad.mp3",
+      "lrc_path": "songs/final/130_Nannaku_Sagar, Devi Sri Prasad.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/131_Po Ve Po - The Pain of Love_Anirudh Ravichander, Mohit Chauhan, Bhuvana Chandra.mp3",
+      "lrc_path": "songs/final/131_Po Ve Po - The Pain of Love_Anirudh Ravichander, Mohit Chauhan, Bhuvana Chandra.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/132_Karukkuchoopu Kurraada_D. Imman, Vandana Srinivasan, Jithin Raj, Jayamoorthy.mp3",
+      "lrc_path": "songs/final/132_Karukkuchoopu Kurraada_D. Imman, Vandana Srinivasan, Jithin Raj, Jayamoorthy.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/134_Reppalanindaa_Haricharan.mp3",
+      "lrc_path": "songs/final/134_Reppalanindaa_Haricharan.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/135_Evare Nuvvu_Yuvan Shankar Raja, Harris Raghavendra.mp3",
+      "lrc_path": "songs/final/135_Evare Nuvvu_Yuvan Shankar Raja, Harris Raghavendra.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/136_Lover Also Fighter Also_Vishal Chandrashekhar, Shekhar Ravjiani.mp3",
+      "lrc_path": "songs/final/136_Lover Also Fighter Also_Vishal Chandrashekhar, Shekhar Ravjiani.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/137_Adiga Adiga_Sid Sriram.mp3",
+      "lrc_path": "songs/final/137_Adiga Adiga_Sid Sriram.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/140_Massu Maranam - From _Petta (Telugu)_Anirudh Ravichander, Mano.mp3",
+      "lrc_path": "songs/final/140_Massu Maranam - From _Petta (Telugu)_Anirudh Ravichander, Mano.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/141_Panjaban Remix_Panjabi MC.mp3",
+      "lrc_path": "songs/final/141_Panjaban Remix_Panjabi MC.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/142_Samajavaragamana_Thaman S, Sid Sriram.mp3",
+      "lrc_path": "songs/final/142_Samajavaragamana_Thaman S, Sid Sriram.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/144_Sada Siva_Mani Sharma, Ramesh Vinayakam, Karunya, Ramajogayya Sastry.mp3",
+      "lrc_path": "songs/final/144_Sada Siva_Mani Sharma, Ramesh Vinayakam, Karunya, Ramajogayya Sastry.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/145_Sutiga Choodaku_Aravindh Sankar, Hariharan, Saindhavi.mp3",
+      "lrc_path": "songs/final/145_Sutiga Choodaku_Aravindh Sankar, Hariharan, Saindhavi.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/150_Maayya Maayya_Gopi Sundar, Anurag Kulkarni.mp3",
+      "lrc_path": "songs/final/150_Maayya Maayya_Gopi Sundar, Anurag Kulkarni.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/152_Endhuko Emo_Harris Jayaraj, Aalaap Raju, Prasanthini.mp3",
+      "lrc_path": "songs/final/152_Endhuko Emo_Harris Jayaraj, Aalaap Raju, Prasanthini.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/153_Maate Vinadhuga_Jakes Bejoy, Sid Sriram.mp3",
+      "lrc_path": "songs/final/153_Maate Vinadhuga_Jakes Bejoy, Sid Sriram.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/154_Violin Song_David Simon, Anitha.mp3",
+      "lrc_path": "songs/final/154_Violin Song_David Simon, Anitha.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/156_Choolenge Aasma_Anup Rubens, Adnan Sami, Ramya Behara, Veena Ghantasala.mp3",
+      "lrc_path": "songs/final/156_Choolenge Aasma_Anup Rubens, Adnan Sami, Ramya Behara, Veena Ghantasala.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/157_Seeti Maar_Jaspreet Jasz, Rita Thyagarajan.mp3",
+      "lrc_path": "songs/final/157_Seeti Maar_Jaspreet Jasz, Rita Thyagarajan.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/160_Peddha Peddha Kallathoti_Devi Sri Prasad, Yazin Nizar.mp3",
+      "lrc_path": "songs/final/160_Peddha Peddha Kallathoti_Devi Sri Prasad, Yazin Nizar.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/161_Champesaave Nannu_Devi Sri Prasad, Kapil, Sameera Bharadwaj.mp3",
+      "lrc_path": "songs/final/161_Champesaave Nannu_Devi Sri Prasad, Kapil, Sameera Bharadwaj.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/162_Choosi Chudangane_Mahati Swara Sagar, Anurag Kulkarni.mp3",
+      "lrc_path": "songs/final/162_Choosi Chudangane_Mahati Swara Sagar, Anurag Kulkarni.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/164_Neeli Rangu Cheeralona_Yuvan Shankar Raja, Hariharan.mp3",
+      "lrc_path": "songs/final/164_Neeli Rangu Cheeralona_Yuvan Shankar Raja, Hariharan.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/165_Nellorae_Thaman S, Jaspreet Jasz, Suchitra.mp3",
+      "lrc_path": "songs/final/165_Nellorae_Thaman S, Jaspreet Jasz, Suchitra.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/168_Chuda Sakkagunnave_Thaman S, M.M.Manasi.mp3",
+      "lrc_path": "songs/final/168_Chuda Sakkagunnave_Thaman S, M.M.Manasi.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/169_I Love You Too_Devi Sri Prasad, Yazin Nizar, Sameera.mp3",
+      "lrc_path": "songs/final/169_I Love You Too_Devi Sri Prasad, Yazin Nizar, Sameera.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/171_Sehri..Sehari_Thoshi, Priya.mp3",
+      "lrc_path": "songs/final/171_Sehri..Sehari_Thoshi, Priya.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/174_One More Time_Anup Rubens, Ranjith Govind, Lipsika.mp3",
+      "lrc_path": "songs/final/174_One More Time_Anup Rubens, Ranjith Govind, Lipsika.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/175_Telisiney Na Nuvvey_L. V. Revanth.mp3",
+      "lrc_path": "songs/final/175_Telisiney Na Nuvvey_L. V. Revanth.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/176_Prema O Premaa_Yuvan Shankar Raja, Sid Sriram, Hemambika, Chandra Bose.mp3",
+      "lrc_path": "songs/final/176_Prema O Premaa_Yuvan Shankar Raja, Sid Sriram, Hemambika, Chandra Bose.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/178_Ra Ra Krishnayya_Achu, Shreya Ghoshal, Yazin Nizar.mp3",
+      "lrc_path": "songs/final/178_Ra Ra Krishnayya_Achu, Shreya Ghoshal, Yazin Nizar.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/180_Chandamame_Yazin Nizar.mp3",
+      "lrc_path": "songs/final/180_Chandamame_Yazin Nizar.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/181_Mellaga Tellarindoi_Mickey J. Meyer, Anurag Kulkarni, Ramya Behara, Mohana Bhogaraju.mp3",
+      "lrc_path": "songs/final/181_Mellaga Tellarindoi_Mickey J. Meyer, Anurag Kulkarni, Ramya Behara, Mohana Bhogaraju.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/182_Arere Yekkada_Devi Sri Prasad, Naresh Iyer, Manisha Eerabathini.mp3",
+      "lrc_path": "songs/final/182_Arere Yekkada_Devi Sri Prasad, Naresh Iyer, Manisha Eerabathini.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/185_Allasani Vaari_Thaman S, Shreya Ghoshal.mp3",
+      "lrc_path": "songs/final/185_Allasani Vaari_Thaman S, Shreya Ghoshal.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/186_Seethakaalam_Devi Sri Prasad, Yazin Nizar.mp3",
+      "lrc_path": "songs/final/186_Seethakaalam_Devi Sri Prasad, Yazin Nizar.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/188_Bombay Pothava Raja_Bheems Ceciroleo, Raghuram.mp3",
+      "lrc_path": "songs/final/188_Bombay Pothava Raja_Bheems Ceciroleo, Raghuram.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/191_Ye Chota Nuvvunna (From _Saaho_) (feat. Tulsi Kumar, Haricharan Seshadri)_Guru Randhawa, Tulsi Kumar, Krishna Kanth.mp3",
+      "lrc_path": "songs/final/191_Ye Chota Nuvvunna (From _Saaho_) (feat. Tulsi Kumar, Haricharan Seshadri)_Guru Randhawa, Tulsi Kumar, Krishna Kanth.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/198_Gunzukunnaa_A.R. Rahman, Shakthisree Gopalan.mp3",
+      "lrc_path": "songs/final/198_Gunzukunnaa_A.R. Rahman, Shakthisree Gopalan.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/199_Nesthama Nesthama_Devi Sri Prasad, Sri Krishna, Harini.mp3",
+      "lrc_path": "songs/final/199_Nesthama Nesthama_Devi Sri Prasad, Sri Krishna, Harini.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/202_Bombhaat_Mani Sharma, Rahul Sipligunj, Ramya Behara.mp3",
+      "lrc_path": "songs/final/202_Bombhaat_Mani Sharma, Rahul Sipligunj, Ramya Behara.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/204_Naa Manasu Neelo_Devi Sri Prasad, Sharmila.mp3",
+      "lrc_path": "songs/final/204_Naa Manasu Neelo_Devi Sri Prasad, Sharmila.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/205_Pilla Nuvvu Leni Jeevitham_Anup Rubens, Anudeep Dev, Rahul.mp3",
+      "lrc_path": "songs/final/205_Pilla Nuvvu Leni Jeevitham_Anup Rubens, Anudeep Dev, Rahul.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/206_Neethoney Dance_Hiphop Tamizha, Nikhita Gandhi.mp3",
+      "lrc_path": "songs/final/206_Neethoney Dance_Hiphop Tamizha, Nikhita Gandhi.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/208_Bujjiamma Bujjiamma_Gold Devaraj.mp3",
+      "lrc_path": "songs/final/208_Bujjiamma Bujjiamma_Gold Devaraj.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/211_Subhalekha Rasukunna_Thaman S, Haricharan, Shreya Ghoshal.mp3",
+      "lrc_path": "songs/final/211_Subhalekha Rasukunna_Thaman S, Haricharan, Shreya Ghoshal.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/215_Sainika_Vishal Dadlani.mp3",
+      "lrc_path": "songs/final/215_Sainika_Vishal Dadlani.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/219_Niharika_Devi Sri Prasad, Vijay Prakash, Neha Bhasin.mp3",
+      "lrc_path": "songs/final/219_Niharika_Devi Sri Prasad, Vijay Prakash, Neha Bhasin.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/221_Jarra Jarra (From _Valmiki_)_Mickey J. Meyer, Anurag Kulkarni, Uma Neha, Bhaskarabhatla.mp3",
+      "lrc_path": "songs/final/221_Jarra Jarra (From _Valmiki_)_Mickey J. Meyer, Anurag Kulkarni, Uma Neha, Bhaskarabhatla.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/222_Glassmates (From _Chitralahari_)_Devi Sri Prasad, Rahul Sipligunj, Penchal Das.mp3",
+      "lrc_path": "songs/final/222_Glassmates (From _Chitralahari_)_Devi Sri Prasad, Rahul Sipligunj, Penchal Das.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/225_Shatamanam Bhavati_Mickey J. Meyer, K. S. Chithra, Vijay Yesudas.mp3",
+      "lrc_path": "songs/final/225_Shatamanam Bhavati_Mickey J. Meyer, K. S. Chithra, Vijay Yesudas.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/226_Naalo Nenu_Mickey J. Meyer, Sameera Bharadwaj.mp3",
+      "lrc_path": "songs/final/226_Naalo Nenu_Mickey J. Meyer, Sameera Bharadwaj.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/227_Elluvochi Godaramma_S. P. Balasubrahmanyam, P. Susheela.mp3",
+      "lrc_path": "songs/final/227_Elluvochi Godaramma_S. P. Balasubrahmanyam, P. Susheela.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/228_Nuvvele Nuvvele_Shweta Mohan.mp3",
+      "lrc_path": "songs/final/228_Nuvvele Nuvvele_Shweta Mohan.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/231_Rowdy Baby_Dhanush, M. M. Manasi, Yuvan Shankar Raja.mp3",
+      "lrc_path": "songs/final/231_Rowdy Baby_Dhanush, M. M. Manasi, Yuvan Shankar Raja.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/232_Alludu Seenu_Devi Sri Prasad, Simha, Priya Hemesh.mp3",
+      "lrc_path": "songs/final/232_Alludu Seenu_Devi Sri Prasad, Simha, Priya Hemesh.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/237_Yevandoi Nani Garu_Devi Sri Prasad, Divya Kumar, Sravana Bhargavi.mp3",
+      "lrc_path": "songs/final/237_Yevandoi Nani Garu_Devi Sri Prasad, Divya Kumar, Sravana Bhargavi.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/238_Dandiya India_Devi Sri Prasad, Mukesh, Suchitra.mp3",
+      "lrc_path": "songs/final/238_Dandiya India_Devi Sri Prasad, Mukesh, Suchitra.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    },
+    {
+      "song_path": "songs/final/242_Yellae Lama_Harris Jayaraj, Vijay Prakash, Karthik, Pop Shalini, Rita Thyagarajan.mp3",
+      "lrc_path": "songs/final/242_Yellae Lama_Harris Jayaraj, Vijay Prakash, Karthik, Pop Shalini, Rita Thyagarajan.lrc",
+      "hook": {
+        "start": "",
+        "end": ""
+      }
+    }
+  ]
+}

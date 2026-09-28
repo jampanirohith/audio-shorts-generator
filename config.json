@@ -1,0 +1,98 @@
+{
+  "paths": {
+    "input_dir": "songs/final",
+    "output_dir": "reels/generated",
+    "temp_dir": "temp",
+    "db_path": "db/phase3.db",
+    "logs_dir": "logs",
+    "fonts_dir": "assets/fonts"
+  },
+  "input": {
+    "recursive": false,
+    "require_json": true,
+    "require_word_timing": true,
+    "require_youtube_video_id": true
+  },
+  "demucs": {
+    "model": "htdemucs",
+    "device": "cuda",
+    "fallback_to_cpu": true,
+    "sample_rate": 44100,
+    "keep_stems_after_success": false
+  },
+  "video_match": {
+    "sync_sample_rate": 2000,
+    "sync_frame_ms": 50.0,
+    "sync_hop_ms": 25.0,
+    "anchor_seconds": 15.0,
+    "earliest_near_best_tolerance": 0.015,
+    "guard_before_ms": 1500,
+    "guard_after_ms": 1500
+  },
+  "video_layout": {
+    "output_width": 1080,
+    "output_height": 1920,
+    "height_fraction": 0.8,
+    "background": "black",
+    "mode": "static_centered"
+  },
+  "audio_8d": {
+    "target_lufs": -14.0,
+    "true_peak_db": -1.0,
+    "drums_center_weight": 0.85,
+    "drums_stereo_width": 0.15,
+    "other_lfo_width_verse": 0.4,
+    "other_lfo_width_chorus": 0.8,
+    "other_lfo_frequency_verse_hz": 0.05,
+    "other_lfo_frequency_chorus_hz": 0.1,
+    "fade_in_ms": 150,
+    "fade_out_ms": 250,
+    "preserve_timeline": true,
+    "stem_sample_rate": 44100,
+    "save_cropped_stems": true,
+    "vocal_stereo_send": 0.0,
+    "drums_pan_amount": 0.15,
+    "bass_pan_amount": 0.0
+  },
+  "lyrics": {
+    "enabled": true,
+    "use_lrc_for_text_validation": true,
+    "font_name": "Baloo Tammudu 2 ExtraBold",
+    "font_filename": "BalooTammudu2-ExtraBold.ttf",
+    "font_size": 110,
+    "font_bold": true,
+    "shadow": 4,
+    "outline": 3,
+    "center_x": 540,
+    "center_y": 960,
+    "active_word_mode": "single_line_word_highlight",
+    "base_color": "#FFFFFF",
+    "current_color": "#FFD65A",
+    "completed_color": "#FFFFFF",
+    "max_chars_single_line": 30,
+    "min_scale_x": 70
+  },
+  "video": {
+    "yt_dlp_binary": "yt-dlp",
+    "download_timeout_seconds": 600,
+    "metadata_timeout_seconds": 120,
+    "video_format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+    "audio_format": "bestaudio/best"
+  },
+  "render": {
+    "video_codec": "h264_nvenc",
+    "video_codec_fallback": "libx264",
+    "preset": "fast",
+    "crf": 18,
+    "audio_codec": "aac",
+    "audio_bitrate": "192k",
+    "faststart": true,
+    "nvenc_preset": "p4"
+  },
+  "recovery": {
+    "max_attempts_per_stage": 3,
+    "retry_backoff_seconds": 2,
+    "keep_failed_temp": true,
+    "keep_success_temp": false
+  }
+}
